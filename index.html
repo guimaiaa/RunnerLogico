@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Runner Lógico</title>
+<style>
+  /* ================================================================
+     ESTILO (CSS) — telas sobrepostas, HUD e tabelas-verdade
+     ================================================================ */
+  :root {
+    --fundo: #0a0e1a;
+    --painel: #111827;
+    --borda: #243049;
+    --texto: #e2e8f0;
+    --apagado: #94a3b8;
+    --azul: #38bdf8;     /* cor do bit 0 */
+    --laranja: #fb923c;  /* cor do bit 1 */
+    --verde: #4ade80;    /* saída 1 / sucesso */
+    --vermelho: #f87171; /* saída 0 / erro */
+    --destaque: #a78bfa; /* cor de destaque da interface */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--fundo);
+    color: var(--texto);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  canvas { display: block; position: fixed; inset: 0; touch-action: none; }
+
+  /* ---------- HUD (pontuação, recorde, bit, botões) ---------- */
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 5;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: max(12px, env(safe-area-inset-top)) 14px 0;
+    pointer-events: none;
+  }
+  .hud-info { display: flex; gap: 8px; }
+  .hud-item {
+    background: rgba(17, 24, 39, 0.8);
+    border: 1px solid var(--borda);
+    border-radius: 10px;
+    padding: 5px 12px;
+    text-align: center;
+    min-width: 66px;
+  }
+  .rotulo { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--apagado); }
+  .valor { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .bit0 { color: var(--azul); }
+  .bit1 { color: var(--laranja); }
+  .hud-botoes { display: flex; gap: 8px; pointer-events: auto; }
+  .hud-botoes button {
+    width: 44px; height: 44px; border-radius: 10px; font-size: 17px;
+    background: rgba(17, 24, 39, 0.8); color: var(--texto);
+    border: 1px solid var(--borda); cursor: pointer;
+  }
+  .hud-botoes button:hover { border-color: var(--destaque); }
+
+  /* ---------- Telas sobrepostas (início, pausa, game over, ajuda) ---------- */
+  .overlay {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    background: rgba(6, 9, 18, 0.75);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+  .escondido { display: none !important; }
+  .cartao {
+    background: var(--painel);
+    border: 1px solid var(--borda);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    border-radius: 18px;
+    padding: 26px;
+    width: 100%; max-width: 560px;
+    max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px);
+    overflow: auto;
+    text-align: center;
+  }
+  .cartao.largo { max-width: 860px; }
+  h1 { font-size: clamp(34px, 8vw, 52px); font-weight: 900; letter-spacing: -0.01em; }
+  h1 span { color: var(--destaque); }
+  h2 { font-size: 28px; margin-bottom: 10px; }
+  h2.erro { color: var(--vermelho); }
+  .sub { color: var(--apagado); margin: 4px 0 20px; }
+  .regras { text-align: left; list-style: none; display: grid; gap: 10px; margin-bottom: 16px; line-height: 1.45; }
+  .regras li { padding-left: 22px; position: relative; }
+  .regras li::before { content: "▸"; position: absolute; left: 4px; color: var(--destaque); }
+  .c0 { color: var(--azul); } .c1 { color: var(--laranja); }
+  .ok { color: var(--verde); } .ruim { color: var(--vermelho); }
+  code, kbd {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    background: rgba(255, 255, 255, 0.07); border: 1px solid var(--borda); border-radius: 5px; padding: 0 6px;
+  }
+  .piscar { font-weight: 700; font-size: 18px; animation: piscar 1.4s ease-in-out infinite; margin: 10px 0 12px; }
+  @keyframes piscar { 50% { opacity: 0.35; } }
+  .dica { font-size: 13px; color: var(--apagado); margin-top: 10px; line-height: 1.5; }
+  .botoes { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 16px; }
+  .botoes button {
+    font: inherit; font-weight: 700; padding: 12px 20px; border-radius: 12px; cursor: pointer;
+    background: var(--destaque); color: #160b2e; border: none;
+  }
+  .botoes button.secundario { background: transparent; color: var(--texto); border: 1px solid var(--borda); }
+
+  /* ---------- Game Over educativo ---------- */
+  .caixa-erro {
+    background: rgba(248, 113, 113, 0.07); border: 1px solid rgba(248, 113, 113, 0.35);
+    border-radius: 12px; padding: 12px; margin: 12px 0 16px; line-height: 1.5;
+  }
+  .calculo { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 22px; font-weight: 800; margin: 6px 0; }
+
+  /* ---------- Tabelas-verdade ---------- */
+  table.tabela { border-collapse: collapse; margin: 0 auto; font-variant-numeric: tabular-nums; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  table.tabela caption { font-weight: 800; padding-bottom: 6px; font-family: system-ui, sans-serif; }
+  table.tabela th, table.tabela td { padding: 5px 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.07); }
+  table.tabela th { font-size: 13px; color: var(--apagado); }
+  table.tabela.mini th, table.tabela.mini td { padding: 2px 9px; font-size: 14px; }
+  .s1 { color: var(--verde); font-weight: 800; }
+  .s0 { color: var(--vermelho); font-weight: 800; }
+  tr.linha-erro td { background: rgba(248, 113, 113, 0.28); color: #fff; }
+  tr.linha-certa td { background: rgba(74, 222, 128, 0.13); }
+  .legenda { font-size: 13px; color: var(--apagado); margin-top: 8px; }
+  .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 12px; margin-top: 14px; }
+  .card-porta { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--borda); border-radius: 12px; padding: 10px; }
+  .card-porta p { font-size: 13px; color: var(--apagado); margin-top: 6px; }
+
+  /* ---------- Aviso de nova porta (embaixo, para não cobrir os trilhos) ---------- */
+  #aviso {
+    position: fixed; bottom: max(16px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 6;
+    pointer-events: none; text-align: center;
+    background: rgba(17, 24, 39, 0.94); border: 1px solid var(--destaque); border-radius: 14px;
+    padding: 10px 16px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    animation: entrar 0.35s ease-out;
+    max-width: calc(100vw - 24px);
+  }
+  #aviso .titulo-aviso { font-size: 19px; font-weight: 900; color: var(--destaque); margin-bottom: 6px; }
+  #aviso .tabelas-aviso { display: flex; gap: 16px; justify-content: center; }
+  @keyframes entrar { from { opacity: 0; transform: translate(-50%, 16px); } }
+</style>
+</head>
+<body>
+
+<canvas id="tela"></canvas>
+
+<!-- HUD: sempre visível no topo -->
+<div id="hud">
+  <div class="hud-info">
+    <div class="hud-item"><span class="rotulo">Pontos</span><span id="hudPontos" class="valor">0</span></div>
+    <div class="hud-item"><span class="rotulo">Recorde</span><span id="hudRecorde" class="valor">0</span></div>
+    <div class="hud-item"><span class="rotulo">Bit</span><span id="hudBit" class="valor bit0">0</span></div>
+  </div>
+  <div class="hud-botoes">
+    <button id="btnPausa" title="Pausar (P)" aria-label="Pausar">⏸</button>
+    <button id="btnMudo" title="Som (M)" aria-label="Ligar/desligar som">🔊</button>
+  </div>
+</div>
+
+<!-- Aviso temporário de nova porta liberada -->
+<div id="aviso" class="escondido"></div>
+
+<!-- Tela inicial -->
+<div id="telaInicio" class="overlay">
+  <div class="cartao">
+    <h1>Runner <span>Lógico</span></h1>
+    <p class="sub">Você é um sinal correndo por um circuito</p>
+    <ul class="regras">
+      <li>Você carrega um bit: <b class="c0">0</b> ou <b class="c1">1</b>. Troque com <kbd>ESPAÇO</kbd>, clique ou toque.</li>
+      <li>O circuito tem <b>3 trilhos</b>. Mude de trilho com <kbd>↑</kbd> <kbd>↓</kbd> (ou <kbd>W</kbd> <kbd>S</kbd>), ou deslizando o dedo.</li>
+      <li>Segure <kbd>→</kbd> para acelerar ou <kbd>←</kbd> para ir devagar (ou <kbd>D</kbd> <kbd>A</kbd>).</li>
+      <li>Cada trilho tem uma porta lógica com entrada fixa: <code>AND 1</code>, <code>OR 0</code>, <code>NOT</code>… Escolha o trilho cuja porta você consegue satisfazer!</li>
+      <li>Saída = PORTA(seu bit, entrada). Saída <b class="ok">1</b> → passa. Saída <b class="ruim">0</b> → game over. Fuja dos <b class="ruim">bloqueios ✕</b>.</li>
+    </ul>
+    <p class="piscar">Pressione ESPAÇO ou toque para começar</p>
+    <div class="botoes"><button id="btnAjudaInicio" class="secundario">Como funcionam as portas</button></div>
+    <p class="dica">P = pausa · M = som<br>Celular: toque = troca o bit · deslize ↑↓ = troca de trilho<br>arraste → ou ← e segure = acelera / freia</p>
+  </div>
+</div>
+
+<!-- Tela de pausa -->
+<div id="telaPausa" class="overlay escondido">
+  <div class="cartao">
+    <h2>Pausado</h2>
+    <p>Pressione <kbd>P</kbd>, <kbd>ESPAÇO</kbd> ou toque para continuar.</p>
+  </div>
+</div>
+
+<!-- Tela de Game Over educativa -->
+<div id="telaGameOver" class="overlay escondido">
+  <div class="cartao">
+    <h2 class="erro">Game Over</h2>
+    <p id="goPontos"></p>
+    <div class="caixa-erro">
+      <p>Você bateu em <b id="goPortao"></b></p>
+      <p class="calculo" id="goCalculo"></p>
+      <p id="goExplicacao"></p>
+    </div>
+    <div id="goTabela"></div>
+    <p id="goLegenda" class="legenda"><span class="ruim">■</span> o que aconteceu &nbsp; <span class="ok">■</span> o que teria passado</p>
+    <div class="botoes">
+      <button id="btnReiniciar">Jogar novamente</button>
+      <button id="btnAjudaGO" class="secundario">Todas as portas</button>
+    </div>
+    <p class="dica">ou pressione ESPAÇO</p>
+  </div>
+</div>
+
+<!-- Tela de ajuda: tabelas-verdade de todas as portas -->
+<div id="telaAjuda" class="overlay escondido">
+  <div class="cartao largo">
+    <h2>Como funcionam as portas</h2>
+    <p><b>x</b> = seu bit · <b>e</b> = entrada fixa do portão. Você passa quando a saída é <b class="ok">1</b>.<br>
+       <span class="ruim">✕ Bloqueio</span> = trilho sem saída: nenhum bit passa, troque de trilho.</p>
+    <div id="ajudaGrade" class="grade"></div>
+    <div class="botoes"><button id="btnFecharAjuda">Voltar</button></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// =====================================================================
+// 1. LÓGICA DAS PORTAS — a parte "matemática" do jogo.
+//    Não depende de canvas nem de HTML, por isso pode ser testada sozinha.
+// =====================================================================
+// === INÍCIO LÓGICA ===
+
+/**
+ * Cada porta lógica: nome, símbolo da lógica proposicional, se é unária,
+ * cor do portão e a função booleana. x = bit do jogador, e = entrada fixa.
+ */
+const PORTAS = {
+  NOT:     { nome: 'NOT',     simbolo: '¬', unaria: true,  cor: '#f472b6', fn: (x) => 1 - x,
+             descricao: 'Negação: inverte o bit.' },
+  AND:     { nome: 'AND',     simbolo: '∧', unaria: false, cor: '#a78bfa', fn: (x, e) => x & e,
+             descricao: 'Conjunção: 1 só quando os dois são 1.' },
+  OR:      { nome: 'OR',      simbolo: '∨', unaria: false, cor: '#22d3ee', fn: (x, e) => x | e,
+             descricao: 'Disjunção: 1 quando pelo menos um é 1.' },
+  XOR:     { nome: 'XOR',     simbolo: '⊕', unaria: false, cor: '#facc15', fn: (x, e) => x ^ e,
+             descricao: 'Ou exclusivo: 1 quando são diferentes.' },
+  NAND:    { nome: 'NAND',    simbolo: '↑', unaria: false, cor: '#e879f9', fn: (x, e) => 1 - (x & e),
+             descricao: 'NÃO-E: negação do AND.' },
+  NOR:     { nome: 'NOR',     simbolo: '↓', unaria: false, cor: '#2dd4bf', fn: (x, e) => 1 - (x | e),
+             descricao: 'NÃO-OU: negação do OR.' },
+  XNOR:    { nome: 'XNOR',    simbolo: '↔', unaria: false, cor: '#818cf8', fn: (x, e) => 1 - (x ^ e),
+             descricao: 'Bicondicional: 1 quando são iguais.' },
+  IMPLICA: { nome: 'IMPLICA', simbolo: '→', unaria: false, cor: '#cbd5e1', fn: (x, e) => (1 - x) | e,
+             descricao: 'Implicação x → e: só é 0 quando x = 1 e e = 0.' },
+};
+
+/** Ordem em que as portas são liberadas durante o jogo. */
+const NIVEIS = [
+  ['NOT', 'AND', 'OR'],
+  ['XOR'],
+  ['NAND', 'NOR'],
+  ['XNOR'],
+  ['IMPLICA'],
+];
+const PONTOS_POR_NIVEL = 8; // a cada 8 pontos, um novo nível de portas
+const NUM_TRILHOS = 3;      // quantidade de trilhos (fios) do circuito
+const BLOQUEIO = 'BLOQUEIO'; // trilho sem saída: obriga o jogador a desviar
+
+/** Calcula a saída do portão: PORTA(bitDoJogador, entradaFixa). */
+function calcular(tipo, bit, entrada) {
+  const porta = PORTAS[tipo];
+  return porta.unaria ? porta.fn(bit) : porta.fn(bit, entrada);
+}
+
+/** Lista quais bits do jogador (0 e/ou 1) fazem a saída ser 1. */
+function bitsQuePassam(tipo, entrada) {
+  return [0, 1].filter((bit) => calcular(tipo, bit, entrada) === 1);
+}
+
+/** Um portão é justo se existe PELO MENOS um bit que passa (∃x: PORTA(x, e) = 1). */
+function ehPassavel(tipo, entrada) {
+  return bitsQuePassam(tipo, entrada).length > 0;
+}
+
+/** Todas as portas liberadas até o nível informado. */
+function portasLiberadas(nivel) {
+  return NIVEIS.slice(0, nivel + 1).flat();
+}
+
+/**
+ * Gera UM portão aleatório para o nível atual, garantindo que ele é passável.
+ * - Dá preferência (35%) às portas recém-liberadas, para o jogador praticá-las.
+ * - Portões "grátis" (onde os dois bits passam, ex.: OR 1) são descartados
+ *   metade das vezes, para o jogo exigir mais raciocínio.
+ * `aleatorio` pode ser trocado nos testes.
+ */
+function gerarPortao(nivel, aleatorio = Math.random) {
+  const sortear = (lista) => lista[Math.floor(aleatorio() * lista.length)];
+  for (let tentativa = 0; tentativa < 100; tentativa++) {
+    const lista = (nivel > 0 && aleatorio() < 0.35) ? NIVEIS[nivel] : portasLiberadas(nivel);
+    const tipo = sortear(lista);
+    const entrada = PORTAS[tipo].unaria ? null : (aleatorio() < 0.5 ? 0 : 1);
+
+    if (!ehPassavel(tipo, entrada)) continue;                        // ex.: AND 0, NOR 1 → impossíveis
+    if (bitsQuePassam(tipo, entrada).length === 2 && aleatorio() < 0.5) continue; // grátis demais
+    return { tipo, entrada };
+  }
+  return { tipo: 'NOT', entrada: null }; // segurança: NOT sempre tem solução
+}
+
+/** Identificador de um portão, ex.: "AND 1" ou "NOT". */
+function chavePortao(f) {
+  return f.entrada === null ? f.tipo : `${f.tipo} ${f.entrada}`;
+}
+
+/**
+ * Gera uma COLUNA: um item para cada trilho (portão ou bloqueio).
+ * Garantias:
+ * - pelo menos um trilho tem um portão passável (nunca há coluna sem saída);
+ * - os portões de uma mesma coluna são todos diferentes entre si
+ *   (nunca aparecem portas iguais lado a lado).
+ */
+function gerarColuna(nivel, chanceBloqueio, aleatorio = Math.random) {
+  const usados = new Set();
+  // Sorteia um portão que ainda não apareceu nesta coluna
+  const portaoDiferente = () => {
+    let p = gerarPortao(nivel, aleatorio);
+    for (let tentativa = 0; tentativa < 50 && usados.has(chavePortao(p)); tentativa++) {
+      p = gerarPortao(nivel, aleatorio);
+    }
+    usados.add(chavePortao(p));
+    return p;
+  };
+
+  const faixas = [];
+  for (let i = 0; i < NUM_TRILHOS; i++) {
+    faixas.push(aleatorio() < chanceBloqueio ? { tipo: BLOQUEIO, entrada: null } : portaoDiferente());
+  }
+  if (faixas.every((f) => f.tipo === BLOQUEIO)) {
+    faixas[Math.floor(aleatorio() * NUM_TRILHOS)] = portaoDiferente();
+  }
+  return faixas;
+}
+
+/** Monta a tabela-verdade de uma porta: lista de linhas {x, e, s}. */
+function tabelaVerdade(tipo) {
+  const linhas = [];
+  if (PORTAS[tipo].unaria) {
+    for (const x of [0, 1]) linhas.push({ x, e: null, s: calcular(tipo, x, null) });
+  } else {
+    for (const x of [0, 1]) for (const e of [0, 1]) linhas.push({ x, e, s: calcular(tipo, x, e) });
+  }
+  return linhas;
+}
+
+/**
+ * TESTE AUTOMÁTICO (roda no console ao abrir a página):
+ * 1) confere a tabela-verdade de todas as portas com os valores esperados;
+ * 2) confere que os únicos portões impossíveis são AND 0 e NOR 1;
+ * 3) gera milhares de colunas em cada nível (até com 95% de chance de bloqueio)
+ *    e confirma: todo portão é passável, só aparecem portas liberadas,
+ *    toda coluna tem pelo menos um trilho com saída e não há portões repetidos.
+ */
+function testarLogica() {
+  // Saídas esperadas na ordem (x,e) = (0,0), (0,1), (1,0), (1,1). NOT: x = 0, 1.
+  const esperado = {
+    NOT: [1, 0],
+    AND: [0, 0, 0, 1],
+    OR: [0, 1, 1, 1],
+    XOR: [0, 1, 1, 0],
+    NAND: [1, 1, 1, 0],
+    NOR: [1, 0, 0, 0],
+    XNOR: [1, 0, 0, 1],
+    IMPLICA: [1, 1, 0, 1],
+  };
+  const erros = [];
+
+  // 1) Tabelas-verdade
+  for (const tipo of Object.keys(PORTAS)) {
+    const obtido = tabelaVerdade(tipo).map((l) => l.s);
+    if (obtido.join() !== esperado[tipo].join()) {
+      erros.push(`Tabela de ${tipo} errada: esperado ${esperado[tipo]}, obtido ${obtido}`);
+    }
+  }
+
+  // 2) Portões impossíveis
+  const impossiveis = [];
+  for (const tipo of Object.keys(PORTAS)) {
+    const entradas = PORTAS[tipo].unaria ? [null] : [0, 1];
+    for (const e of entradas) if (!ehPassavel(tipo, e)) impossiveis.push(`${tipo} ${e}`);
+  }
+  if (impossiveis.join() !== 'AND 0,NOR 1') {
+    erros.push(`Portões impossíveis inesperados: ${impossiveis.join(', ')}`);
+  }
+
+  // 3) Gerador de colunas
+  const COLUNAS_POR_CASO = 5000;
+  const chances = [0, 0.3, 0.5, 0.95];
+  let portoes = 0, colunas = 0;
+  for (let nivel = 0; nivel < NIVEIS.length && erros.length < 20; nivel++) {
+    const permitidas = portasLiberadas(nivel);
+    for (const chance of chances) {
+      for (let i = 0; i < COLUNAS_POR_CASO; i++) {
+        const coluna = gerarColuna(nivel, chance);
+        colunas++;
+        if (coluna.length !== NUM_TRILHOS) erros.push('Coluna com número errado de trilhos');
+        const saidas = coluna.filter((f) => f.tipo !== BLOQUEIO);
+        if (saidas.length === 0) erros.push(`Nível ${nivel}: coluna sem nenhuma saída`);
+        const chaves = saidas.map(chavePortao);
+        if (new Set(chaves).size !== chaves.length) erros.push(`Nível ${nivel}: portões repetidos ${chaves.join(' | ')}`);
+        for (const f of saidas) {
+          portoes++;
+          if (!ehPassavel(f.tipo, f.entrada)) erros.push(`Nível ${nivel}: portão impossível ${f.tipo} ${f.entrada}`);
+          if (!permitidas.includes(f.tipo)) erros.push(`Nível ${nivel}: porta não liberada ${f.tipo}`);
+        }
+      }
+    }
+  }
+
+  if (erros.length === 0) {
+    console.log(`✅ Runner Lógico: 8 tabelas-verdade corretas; impossíveis = só AND 0 e NOR 1 (nunca gerados); ` +
+                `${colunas} colunas e ${portoes} portões gerados — todos passáveis, toda coluna tem saída, nenhum repetido.`);
+  } else {
+    console.error('❌ Falhas nos testes de lógica:\n' + erros.join('\n'));
+  }
+  return erros.length === 0;
+}
+// === FIM LÓGICA ===
+
+
+// =====================================================================
+// 2. UTILITÁRIOS: armazenamento (recorde) e textos
+// =====================================================================
+
+/** localStorage pode falhar (modo privado, file:// bloqueado...), por isso try/catch. */
+function lerArmazenamento(chave, padrao) {
+  try {
+    const valor = localStorage.getItem(chave);
+    return valor === null ? padrao : valor;
+  } catch (erro) {
+    return padrao;
+  }
+}
+function gravarArmazenamento(chave, valor) {
+  try { localStorage.setItem(chave, String(valor)); } catch (erro) { /* sem armazenamento: ignora */ }
+}
+
+/** Texto do portão, ex.: "AND 1" ou "NOT". */
+function rotuloPortao(tipo, entrada) {
+  return PORTAS[tipo].unaria ? PORTAS[tipo].nome : `${PORTAS[tipo].nome} ${entrada}`;
+}
+/** Fórmula com símbolos da lógica, ex.: "x ⊕ 1" ou "¬x". */
+function formulaPortao(tipo, entrada) {
+  const p = PORTAS[tipo];
+  return p.unaria ? `${p.simbolo}x` : `x ${p.simbolo} ${entrada}`;
+}
+
+/** HTML de uma tabela-verdade; `destaque` = {x, e} marca a linha que aconteceu. */
+function htmlTabela(tipo, destaque = null, mini = false) {
+  const p = PORTAS[tipo];
+  let html = `<table class="tabela${mini ? ' mini' : ''}"><caption>${p.nome} (${p.simbolo})</caption><thead><tr>`;
+  html += p.unaria ? '<th>x</th><th>¬x</th>' : `<th>x</th><th>e</th><th>x ${p.simbolo} e</th>`;
+  html += '</tr></thead><tbody>';
+
+  for (const linha of tabelaVerdade(tipo)) {
+    let classe = '';
+    if (destaque) {
+      const mesmaEntrada = p.unaria || linha.e === destaque.e;
+      if (mesmaEntrada && linha.x === destaque.x) classe = 'linha-erro';
+      else if (mesmaEntrada && linha.s === 1) classe = 'linha-certa';
+    }
+    html += `<tr class="${classe}"><td class="c${linha.x}">${linha.x}</td>`;
+    if (!p.unaria) html += `<td>${linha.e}</td>`;
+    html += `<td class="s${linha.s}">${linha.s}</td></tr>`;
+  }
+  return html + '</tbody></table>';
+}
+
+
+// =====================================================================
+// 3. SOM — efeitos gerados na hora com a Web Audio API (sem arquivos)
+// =====================================================================
+const som = {
+  ctx: null,
+  mudo: lerArmazenamento('runnerLogico.mudo', '0') === '1',
+
+  /** O navegador só libera áudio após uma interação do usuário. */
+  iniciar() {
+    if (!this.ctx) {
+      try {
+        const Contexto = window.AudioContext || window.webkitAudioContext;
+        if (Contexto) this.ctx = new Contexto();
+      } catch (erro) { this.ctx = null; }
+    }
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  },
+
+  /** Toca uma nota: frequência, atraso, duração, forma de onda, volume e (opcional) frequência final. */
+  nota(freq, atraso, duracao, onda = 'square', volume = 0.1, freqFinal = null) {
+    if (this.mudo || !this.ctx) return;
+    const t0 = this.ctx.currentTime + atraso;
+    const osc = this.ctx.createOscillator();
+    const ganho = this.ctx.createGain();
+    osc.type = onda;
+    osc.frequency.setValueAtTime(freq, t0);
+    if (freqFinal) osc.frequency.exponentialRampToValueAtTime(freqFinal, t0 + duracao);
+    ganho.gain.setValueAtTime(0.0001, t0);
+    ganho.gain.exponentialRampToValueAtTime(volume, t0 + 0.01);
+    ganho.gain.exponentialRampToValueAtTime(0.0001, t0 + duracao);
+    osc.connect(ganho).connect(this.ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + duracao + 0.02);
+  },
+
+  troca(bit)  { this.nota(bit ? 640 : 420, 0, 0.08, 'square', 0.05); },
+  trilho(sobe) { this.nota(sobe ? 300 : 240, 0, 0.09, 'sine', 0.12, sobe ? 420 : 170); },
+  passou()    { [660, 880, 1320].forEach((f, i) => this.nota(f, i * 0.05, 0.1, 'triangle', 0.12)); },
+  gameOver()  { this.nota(320, 0, 0.6, 'sawtooth', 0.12, 50); this.nota(160, 0.05, 0.7, 'square', 0.05, 40); },
+  novaPorta() { [523, 659, 784, 1047].forEach((f, i) => this.nota(f, i * 0.09, 0.16, 'triangle', 0.1)); },
+};
+
+
+// =====================================================================
+// 4. ESTADO DO JOGO E CONSTANTES
+// =====================================================================
+const VEL_INICIAL = 240;     // pixels virtuais por segundo
+const VEL_MAXIMA = 540;
+const VEL_POR_PONTO = 6;     // quanto a velocidade-alvo sobe a cada ponto
+const FATOR_RAPIDO = 1.7;    // multiplicador da velocidade segurando →
+const FATOR_DEVAGAR = 0.55;  // multiplicador da velocidade segurando ←
+const RAIO_JOGADOR = 26;
+const ESPACO_TRILHO = 120;   // distância vertical entre os trilhos
+const CHIP_L = 104;          // largura do "chip" (portão)
+const CHIP_A = 66;           // altura do chip
+const COR_BIT = ['#38bdf8', '#fb923c']; // 0 = azul, 1 = laranja
+const COR_SUCESSO = '#4ade80';
+const COR_ERRO = '#f87171';
+
+/**
+ * Estados possíveis: 'menu' → 'jogando' ⇄ 'pausado'
+ *                     'jogando' → 'morrendo' (animação) → 'gameover' → 'jogando'
+ */
+const jogo = {
+  estado: 'menu',
+  pontos: 0,
+  recorde: parseInt(lerArmazenamento('runnerLogico.recorde', '0'), 10) || 0,
+  novoRecorde: false,
+  bit: 0,
+  trilho: 1,             // trilho de destino (0 = de cima, 1 = meio, 2 = de baixo)
+  jogadorY: 0,           // posição vertical desenhada (desliza até o trilho)
+  nivel: 0,
+  velocidade: VEL_INICIAL,
+  fatorVel: 1,           // multiplicador atual da velocidade (acelerar / frear)
+  distancia: 0,          // quanto o mundo já rolou (usado no fundo animado)
+  colunas: [],           // {x, resolvida, faixas: [{tipo, entrada, estado, anim}]}
+  particulas: [],
+  textos: [],            // textos flutuantes "+1"
+  proximaColuna: 0,      // distância que falta até criar a próxima coluna
+  sequenciaRestante: 0,  // colunas "coladas" que ainda faltam na sequência atual
+  tremor: 0,             // intensidade do tremor de tela (0 a 1)
+  pulsoBit: 0,           // animação ao trocar o bit
+  tempo: 0,
+  tempoMorte: 0,
+  momentoGameOver: 0,
+  falha: null,           // dados do portão que derrubou o jogador
+};
+
+// Dimensões do mundo "virtual" (ajustadas em redimensionar)
+const canvas = document.getElementById('tela');
+const ctx = canvas.getContext('2d');
+let LARG = 800, ALT = 450, escala = 1, dpr = 1, centroY = 260, jogadorX = 170;
+
+/** Posição vertical (y) de cada trilho. */
+function yTrilho(i) {
+  return centroY + (i - 1) * ESPACO_TRILHO;
+}
+
+
+// =====================================================================
+// 5. TELA RESPONSIVA
+//    Desenhamos num mundo virtual e escalamos para caber na tela real.
+// =====================================================================
+function redimensionar() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+
+  const retrato = h > w; // celular em pé
+  escala = retrato ? w / 560 : Math.min(w / 820, h / 470);
+  LARG = w / escala;
+  ALT = h / escala;
+  centroY = ALT * (retrato ? 0.5 : 0.56);
+  jogadorX = Math.max(90, Math.min(LARG * 0.2, 200));
+  jogo.jogadorY = yTrilho(jogo.trilho);
+}
+
+
+// =====================================================================
+// 6. AÇÕES DO JOGADOR E FLUXO DE TELAS
+// =====================================================================
+const el = (id) => document.getElementById(id);
+const telas = {
+  inicio: el('telaInicio'),
+  pausa: el('telaPausa'),
+  gameOver: el('telaGameOver'),
+  ajuda: el('telaAjuda'),
+};
+let ajudaAberta = false;
+let timerAviso = null;
+
+function iniciarJogo() {
+  Object.assign(jogo, {
+    estado: 'jogando', pontos: 0, bit: 0, trilho: 1, nivel: 0, velocidade: VEL_INICIAL, fatorVel: 1,
+    colunas: [], particulas: [], textos: [], sequenciaRestante: 0,
+    tremor: 0, falha: null, novoRecorde: false,
+    proximaColuna: LARG * 0.5, // primeira coluna chega depois de um respiro
+  });
+  jogo.jogadorY = yTrilho(1);
+  telas.inicio.classList.add('escondido');
+  telas.gameOver.classList.add('escondido');
+  telas.pausa.classList.add('escondido');
+  atualizarHUD();
+}
+
+/** Ação 1: alternar o bit (0 ↔ 1). */
+function alternarBit() {
+  jogo.bit = 1 - jogo.bit;
+  jogo.pulsoBit = 1;
+  som.troca(jogo.bit);
+  atualizarHUD();
+}
+
+/** Ação 2: trocar de trilho (direcao = -1 sobe, +1 desce). */
+function moverTrilho(direcao) {
+  if (jogo.estado !== 'jogando') return;
+  const novo = Math.max(0, Math.min(NUM_TRILHOS - 1, jogo.trilho + direcao));
+  if (novo === jogo.trilho) return;
+  jogo.trilho = novo;
+  som.trilho(direcao < 0);
+}
+
+/**
+ * Ação 3: controle de velocidade (enquanto a tecla/dedo estiver pressionado).
+ * Retorna +1 (acelerar), -1 (frear) ou 0 (normal).
+ */
+const controleVel = { direita: false, esquerda: false, toque: 0 };
+function modoVelocidade() {
+  if (controleVel.toque !== 0) return controleVel.toque;
+  if (controleVel.direita && !controleVel.esquerda) return 1;
+  if (controleVel.esquerda && !controleVel.direita) return -1;
+  return 0;
+}
+
+/** Espaço / clique / toque: o que fazer depende do estado atual. */
+function acaoPrincipal() {
+  som.iniciar();
+  if (ajudaAberta) { fecharAjuda(); return; }
+  switch (jogo.estado) {
+    case 'menu':     iniciarJogo(); break;
+    case 'jogando':  alternarBit(); break;
+    case 'pausado':  alternarPausa(); break;
+    case 'gameover': // pequena espera para não reiniciar sem querer
+      if (performance.now() - jogo.momentoGameOver > 600) iniciarJogo();
+      break;
+  }
+}
+
+function alternarPausa() {
+  if (jogo.estado === 'jogando') {
+    jogo.estado = 'pausado';
+    telas.pausa.classList.remove('escondido');
+  } else if (jogo.estado === 'pausado') {
+    jogo.estado = 'jogando';
+    telas.pausa.classList.add('escondido');
+  }
+}
+
+function alternarMudo() {
+  som.mudo = !som.mudo;
+  gravarArmazenamento('runnerLogico.mudo', som.mudo ? '1' : '0');
+  el('btnMudo').textContent = som.mudo ? '🔇' : '🔊';
+}
+
+function abrirAjuda() {
+  ajudaAberta = true;
+  telas.ajuda.classList.remove('escondido');
+}
+function fecharAjuda() {
+  ajudaAberta = false;
+  telas.ajuda.classList.add('escondido');
+}
+
+function atualizarHUD() {
+  el('hudPontos').textContent = jogo.pontos;
+  el('hudRecorde').textContent = jogo.recorde;
+  const hudBit = el('hudBit');
+  hudBit.textContent = jogo.bit;
+  hudBit.className = 'valor bit' + jogo.bit;
+}
+
+/** Mostra "Nova porta: XOR!" com a mini tabela-verdade por 3 segundos. */
+function mostrarAvisoNovaPorta(tipos) {
+  const nomes = tipos.map((t) => PORTAS[t].nome);
+  const titulo = tipos.length > 1 ? `Novas portas: ${nomes.join(' e ')}!` : `Nova porta: ${nomes[0]}!`;
+  const aviso = el('aviso');
+  aviso.innerHTML = `<div class="titulo-aviso">${titulo}</div>` +
+    `<div class="tabelas-aviso">${tipos.map((t) => htmlTabela(t, null, true)).join('')}</div>`;
+  // Reinicia a animação de entrada
+  aviso.classList.add('escondido');
+  void aviso.offsetWidth;
+  aviso.classList.remove('escondido');
+  clearTimeout(timerAviso);
+  timerAviso = setTimeout(() => aviso.classList.add('escondido'), 3000);
+}
+
+/** Preenche a tela de Game Over com o cálculo que deu errado e a tabela-verdade. */
+function mostrarGameOver() {
+  jogo.estado = 'gameover';
+  jogo.momentoGameOver = performance.now();
+  const f = jogo.falha;
+
+  el('goPontos').innerHTML = `Pontuação: <b>${jogo.pontos}</b> · Recorde: <b>${jogo.recorde}</b>` +
+    (jogo.novoRecorde ? ' <span class="ok">— novo recorde!</span>' : '');
+
+  if (f.tipo === BLOQUEIO) {
+    // Bateu num bloqueio: não há porta lógica, faltou trocar de trilho
+    el('goPortao').innerHTML = 'um <span class="ruim">bloqueio ✕</span>';
+    el('goCalculo').textContent = 'Trilho sem saída';
+    el('goExplicacao').innerHTML = 'Nenhum bit passa por um bloqueio. Use <kbd>↑</kbd> <kbd>↓</kbd> (ou deslize) para trocar de trilho.';
+    el('goTabela').innerHTML = '';
+    el('goLegenda').classList.add('escondido');
+  } else {
+    const p = PORTAS[f.tipo];
+    const certo = bitsQuePassam(f.tipo, f.entrada);
+    const args = p.unaria ? `${f.bit}` : `${f.bit}, ${f.entrada}`;
+    const simbolico = p.unaria ? `${p.simbolo}${f.bit}` : `${f.bit} ${p.simbolo} ${f.entrada}`;
+    el('goPortao').textContent = 'o portão ' + rotuloPortao(f.tipo, f.entrada);
+    el('goCalculo').innerHTML = `${p.nome}(${args}) = <span class="ruim">0</span>` +
+      `<br><small style="opacity:.7">${simbolico} = 0</small>`;
+    el('goExplicacao').innerHTML =
+      `Você estava com o bit <b class="c${f.bit}">${f.bit}</b>. ` +
+      `Para passar, precisava do bit <b class="c${certo[0]}">${certo.join(' ou ')}</b> ` +
+      `(ou trocar de trilho).<br><small>${p.descricao}</small>`;
+    el('goTabela').innerHTML = htmlTabela(f.tipo, { x: f.bit, e: f.entrada });
+    el('goLegenda').classList.remove('escondido');
+  }
+
+  el('aviso').classList.add('escondido');
+  telas.gameOver.classList.remove('escondido');
+}
+
+/** Monta a grade da tela "Como funcionam as portas". */
+function montarAjuda() {
+  el('ajudaGrade').innerHTML = Object.keys(PORTAS).map((tipo) =>
+    `<div class="card-porta">${htmlTabela(tipo)}<p>${PORTAS[tipo].descricao}</p></div>`
+  ).join('');
+}
+
+
+// =====================================================================
+// 7. ATUALIZAÇÃO (física / regras), chamada a cada quadro com delta time
+// =====================================================================
+
+/** Distância até a próxima coluna: diminui com a pontuação e às vezes forma sequências. */
+function calcularEspaco() {
+  const v = jogo.velocidade;
+  if (jogo.sequenciaRestante > 0) {
+    jogo.sequenciaRestante--;
+    return Math.max(v * 0.65, 210); // colunas próximas: ~0,65 s para reagir
+  }
+  if (jogo.pontos >= 4 && Math.random() < 0.2) {
+    jogo.sequenciaRestante = Math.random() < 0.5 ? 1 : 2; // sequência de 2 ou 3 colunas
+  }
+  const base = Math.max(320, 620 - jogo.pontos * 8);
+  return Math.max(base + Math.random() * 160, v * 1.0);
+}
+
+/** Bloqueios começam aos 3 pontos e ficam mais frequentes (nunca em sequências rápidas). */
+function chanceBloqueioAtual() {
+  if (jogo.pontos < 3 || jogo.sequenciaRestante > 0) return 0;
+  return Math.min(0.45, 0.15 + jogo.pontos * 0.01);
+}
+
+function criarColuna() {
+  const faixas = gerarColuna(jogo.nivel, chanceBloqueioAtual())
+    .map((f) => ({ ...f, estado: 'ativo', anim: 0 }));
+  jogo.colunas.push({ x: LARG + CHIP_L, resolvida: false, faixas });
+}
+
+/** O jogador chegou na coluna: aplica a porta lógica do trilho em que ele está. */
+function resolverColuna(coluna) {
+  coluna.resolvida = true;
+  const faixa = coluna.faixas[jogo.trilho];
+  coluna.faixas.forEach((f, i) => { if (i !== jogo.trilho) f.estado = 'ignorado'; });
+  const y = yTrilho(jogo.trilho);
+
+  const saida = faixa.tipo === BLOQUEIO ? 0 : calcular(faixa.tipo, jogo.bit, faixa.entrada);
+  if (saida === 1) {
+    faixa.estado = 'aberto';
+    jogo.pontos++;
+    criarExplosao(coluna.x, y, COR_SUCESSO, 18);
+    jogo.textos.push({ x: coluna.x, y: y - CHIP_A / 2 - 14, texto: '+1', vida: 1 });
+    som.passou();
+    verificarNivel();
+    atualizarHUD();
+  } else {
+    faixa.estado = 'quebrou';
+    jogo.falha = { tipo: faixa.tipo, entrada: faixa.entrada, bit: jogo.bit };
+    jogo.estado = 'morrendo';
+    jogo.tempoMorte = 1.0;
+    jogo.tremor = 1;
+    criarExplosao(jogadorX, y, COR_ERRO, 36);
+    som.gameOver();
+    if (jogo.pontos > jogo.recorde) {
+      jogo.recorde = jogo.pontos;
+      jogo.novoRecorde = true;
+      gravarArmazenamento('runnerLogico.recorde', jogo.recorde);
+    }
+    atualizarHUD();
+  }
+}
+
+/** Libera novas portas a cada PONTOS_POR_NIVEL pontos. */
+function verificarNivel() {
+  const novoNivel = Math.min(NIVEIS.length - 1, Math.floor(jogo.pontos / PONTOS_POR_NIVEL));
+  if (novoNivel > jogo.nivel) {
+    jogo.nivel = novoNivel;
+    mostrarAvisoNovaPorta(NIVEIS[novoNivel]);
+    som.novaPorta();
+  }
+}
+
+function criarExplosao(x, y, cor, quantidade) {
+  for (let i = 0; i < quantidade; i++) {
+    const angulo = Math.random() * Math.PI * 2;
+    const vel = 60 + Math.random() * 220;
+    jogo.particulas.push({
+      x, y, cor,
+      vx: Math.cos(angulo) * vel,
+      vy: Math.sin(angulo) * vel,
+      vida: 0.4 + Math.random() * 0.4,
+    });
+  }
+}
+
+function atualizar(dt) {
+  jogo.tempo += dt;
+
+  if (jogo.estado === 'jogando') {
+    // Velocidade sobe suavemente até o alvo definido pela pontuação
+    const alvo = Math.min(VEL_MAXIMA, VEL_INICIAL + jogo.pontos * VEL_POR_PONTO);
+    jogo.velocidade += (alvo - jogo.velocidade) * Math.min(1, dt * 1.5);
+
+    // Acelerar / frear: o multiplicador muda suavemente até o alvo
+    const modo = modoVelocidade();
+    const alvoFator = modo === 1 ? FATOR_RAPIDO : modo === -1 ? FATOR_DEVAGAR : 1;
+    jogo.fatorVel += (alvoFator - jogo.fatorVel) * Math.min(1, dt * 6);
+
+    // O mundo anda para a esquerda (o jogador fica parado no eixo x)
+    const deslocamento = jogo.velocidade * jogo.fatorVel * dt;
+    jogo.distancia += deslocamento;
+    for (const c of jogo.colunas) c.x -= deslocamento;
+
+    // Criação de colunas de portões
+    jogo.proximaColuna -= deslocamento;
+    if (jogo.proximaColuna <= 0) {
+      criarColuna();
+      jogo.proximaColuna = calcularEspaco();
+    }
+
+    // Colisão: a frente do jogador encostou na entrada do chip
+    for (const c of jogo.colunas) {
+      if (!c.resolvida && c.x - CHIP_L / 2 <= jogadorX + RAIO_JOGADOR) {
+        resolverColuna(c);
+        if (jogo.estado !== 'jogando') break;
+      }
+    }
+    jogo.colunas = jogo.colunas.filter((c) => c.x > -200);
+  } else if (jogo.estado === 'menu') {
+    jogo.distancia += 90 * dt; // cenário rola devagar na tela inicial
+  } else if (jogo.estado === 'morrendo') {
+    jogo.tempoMorte -= dt;
+    if (jogo.tempoMorte <= 0) mostrarGameOver();
+  }
+
+  // O jogador desliza suavemente até o trilho escolhido
+  const yAlvo = yTrilho(jogo.trilho);
+  jogo.jogadorY += (yAlvo - jogo.jogadorY) * Math.min(1, dt * 18);
+
+  // Animações que rodam em qualquer estado (exceto pausa)
+  for (const c of jogo.colunas) {
+    for (const f of c.faixas) if (f.estado !== 'ativo') f.anim = Math.min(1, f.anim + dt * 2.5);
+  }
+  for (const pt of jogo.particulas) {
+    pt.x += pt.vx * dt;
+    pt.y += pt.vy * dt;
+    pt.vx *= 1 - dt * 3; // atrito
+    pt.vy *= 1 - dt * 3;
+    pt.vida -= dt;
+  }
+  jogo.particulas = jogo.particulas.filter((pt) => pt.vida > 0);
+  for (const t of jogo.textos) { t.y -= 40 * dt; t.vida -= dt; }
+  jogo.textos = jogo.textos.filter((t) => t.vida > 0);
+  jogo.tremor = Math.max(0, jogo.tremor - dt * 1.8);
+  jogo.pulsoBit = Math.max(0, jogo.pulsoBit - dt * 5);
+}
+
+
+// =====================================================================
+// 8. DESENHO (canvas) — visual de placa de circuito, limpo
+// =====================================================================
+function desenhar() {
+  // Escala do mundo virtual para pixels reais (inclui telas retina)
+  ctx.setTransform(dpr * escala, 0, 0, dpr * escala, 0, 0);
+  if (jogo.tremor > 0) {
+    const forca = jogo.tremor * 12;
+    ctx.translate((Math.random() - 0.5) * forca, (Math.random() - 0.5) * forca);
+  }
+  desenharFundo();
+  desenharTrilhos();
+  for (const c of jogo.colunas) {
+    c.faixas.forEach((f, i) => desenharChip(f, c.x, yTrilho(i)));
+  }
+  if (jogo.estado !== 'gameover') desenharJogador();
+  desenharEfeitos();
+}
+
+/** Fundo liso com uma grade de pontos discreta que rola devagar (sensação de movimento). */
+function desenharFundo() {
+  ctx.fillStyle = '#0a0e1a';
+  ctx.fillRect(-30, -30, LARG + 60, ALT + 60);
+
+  const espaco = 32;
+  const deslocamento = (jogo.distancia * 0.35) % espaco;
+  ctx.fillStyle = 'rgba(148,163,184,0.09)';
+  for (let x = -deslocamento; x < LARG + espaco; x += espaco) {
+    for (let y = 8; y < ALT; y += espaco) {
+      ctx.fillRect(x, y, 2, 2);
+    }
+  }
+}
+
+/** Os 3 fios do circuito, com "corrente" tracejada correndo e o rastro do sinal do jogador. */
+function desenharTrilhos() {
+  for (let i = 0; i < NUM_TRILHOS; i++) {
+    const y = yTrilho(i);
+    const ativo = i === jogo.trilho && jogo.estado !== 'gameover';
+
+    // Fio base
+    ctx.strokeStyle = ativo ? '#2a3854' : '#1c2538';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(-30, y);
+    ctx.lineTo(LARG + 30, y);
+    ctx.stroke();
+
+    // Pulsos de corrente andando no fio
+    ctx.strokeStyle = ativo ? 'rgba(203,213,225,0.35)' : 'rgba(148,163,184,0.15)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([6, 34]);
+    ctx.lineDashOffset = jogo.distancia;
+    ctx.beginPath();
+    ctx.moveTo(-30, y);
+    ctx.lineTo(LARG + 30, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Rastro do sinal: do lado esquerdo até o jogador, na cor do bit
+  if (jogo.estado !== 'gameover') {
+    const cor = COR_BIT[jogo.bit];
+    const grad = ctx.createLinearGradient(0, 0, jogadorX, 0);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, cor);
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, jogo.jogadorY);
+    ctx.lineTo(jogadorX, jogo.jogadorY);
+    ctx.stroke();
+  }
+}
+
+/** Retângulo com cantos arredondados (compatível com navegadores antigos). */
+function retanguloArredondado(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+/** Desenha um portão como um "chip" sobre o fio, ou um bloqueio ✕. */
+function desenharChip(f, x, y) {
+  const bloqueio = f.tipo === BLOQUEIO;
+  let cor = bloqueio ? COR_ERRO : PORTAS[f.tipo].cor;
+  if (f.estado === 'aberto') cor = COR_SUCESSO;
+  if (f.estado === 'quebrou') cor = COR_ERRO;
+
+  // Transparência: chips de trilhos não escolhidos ficam apagados; o aberto some aos poucos
+  let alpha = 1;
+  if (f.estado === 'ignorado') alpha = 1 - f.anim * 0.7;
+  if (f.estado === 'aberto') alpha = 1 - f.anim * 0.85;
+  const crescer = f.estado === 'aberto' ? 1 + f.anim * 0.15 : 1;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.scale(crescer, crescer);
+
+  // "Pernas" do chip (pinos em cima e embaixo)
+  ctx.fillStyle = '#334155';
+  for (let i = -2; i <= 2; i++) {
+    ctx.fillRect(i * 18 - 3, -CHIP_A / 2 - 6, 6, 6);
+    ctx.fillRect(i * 18 - 3, CHIP_A / 2, 6, 6);
+  }
+
+  // Corpo do chip
+  if (f.estado === 'aberto' || f.estado === 'quebrou') {
+    ctx.shadowColor = cor;
+    ctx.shadowBlur = 24;
+  }
+  retanguloArredondado(-CHIP_L / 2, -CHIP_A / 2, CHIP_L, CHIP_A, 12);
+  ctx.fillStyle = f.estado === 'quebrou' ? '#3a1520' : f.estado === 'aberto' ? '#12301f' : '#131b2e';
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = cor;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  if (bloqueio) {
+    // Bloqueio: um ✕ grande
+    ctx.strokeStyle = cor;
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-14, -14); ctx.lineTo(14, 14);
+    ctx.moveTo(14, -14);  ctx.lineTo(-14, 14);
+    ctx.stroke();
+  } else {
+    // Linha 1: "AND 1" — nome em branco e entrada na cor do bit
+    const info = PORTAS[f.tipo];
+    const entradaTxt = info.unaria ? '' : ' ' + f.entrada;
+    let tamanho = 22;
+    ctx.font = `800 ${tamanho}px system-ui, sans-serif`;
+    let largura = ctx.measureText(info.nome + entradaTxt).width;
+    if (largura > CHIP_L - 14) { // diminui a fonte se não couber (ex.: "IMPLICA 1")
+      tamanho = Math.floor(tamanho * (CHIP_L - 14) / largura);
+      ctx.font = `800 ${tamanho}px system-ui, sans-serif`;
+      largura = ctx.measureText(info.nome + entradaTxt).width;
+    }
+    ctx.textAlign = 'left';
+    const tx = -largura / 2;
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillText(info.nome, tx, -9);
+    if (!info.unaria) {
+      ctx.fillStyle = COR_BIT[f.entrada];
+      ctx.fillText(entradaTxt, tx + ctx.measureText(info.nome).width, -9);
+    }
+
+    // Linha 2: fórmula, ex.: "x ⊕ 1"
+    ctx.textAlign = 'center';
+    ctx.font = '600 14px ui-monospace, Menlo, Consolas, monospace';
+    ctx.fillStyle = cor;
+    ctx.fillText(formulaPortao(f.tipo, f.entrada), 0, 15);
+  }
+  ctx.restore();
+}
+
+/** Personagem: um "sinal" redondo com o bit grande dentro e um anel que pulsa. */
+function desenharJogador() {
+  const cor = COR_BIT[jogo.bit];
+  const cx = jogadorX;
+  const cy = jogo.jogadorY;
+  const morto = jogo.estado === 'morrendo';
+  const correndo = jogo.estado === 'jogando' || jogo.estado === 'menu';
+
+  // Rastros de velocidade quando está acelerando
+  if (jogo.estado === 'jogando' && jogo.fatorVel > 1.05) {
+    const intensidade = (jogo.fatorVel - 1) / (FATOR_RAPIDO - 1);
+    ctx.strokeStyle = cor;
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 4; i++) {
+      const dy = (i - 1.5) * 12;
+      const comprimento = (30 + ((jogo.tempo * 400 + i * 37) % 50)) * intensidade;
+      ctx.globalAlpha = 0.5 * intensidade;
+      ctx.beginPath();
+      ctx.moveTo(cx - RAIO_JOGADOR - 6, cy + dy);
+      ctx.lineTo(cx - RAIO_JOGADOR - 6 - comprimento, cy + dy);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Anel que se expande (pulsação de "sinal")
+  if (correndo) {
+    const fase = (jogo.tempo * 1.6) % 1;
+    ctx.strokeStyle = cor;
+    ctx.globalAlpha = (1 - fase) * 0.5;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, RAIO_JOGADOR + fase * 22, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // Corpo: círculo que "respira" e cresce ao trocar o bit
+  const raio = RAIO_JOGADOR * (1 + 0.04 * Math.sin(jogo.tempo * 10) + jogo.pulsoBit * 0.18);
+  const piscando = morto && Math.floor(jogo.tempo * 12) % 2;
+  ctx.save();
+  ctx.shadowColor = piscando ? COR_ERRO : cor;
+  ctx.shadowBlur = 22;
+  ctx.fillStyle = piscando ? COR_ERRO : cor;
+  ctx.beginPath();
+  ctx.arc(cx, cy, raio, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // O bit, bem grande, dentro do personagem
+  ctx.font = `900 ${Math.round(raio * 1.3)}px system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#0a0e1a';
+  ctx.fillText(String(jogo.bit), cx, cy + 2);
+}
+
+function desenharEfeitos() {
+  for (const pt of jogo.particulas) {
+    ctx.globalAlpha = Math.max(0, pt.vida * 2);
+    ctx.fillStyle = pt.cor;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.font = '800 22px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const t of jogo.textos) {
+    ctx.globalAlpha = Math.max(0, t.vida);
+    ctx.fillStyle = COR_SUCESSO;
+    ctx.fillText(t.texto, t.x, t.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+
+// =====================================================================
+// 9. ENTRADAS (teclado, mouse, toque) e LOOP PRINCIPAL
+// =====================================================================
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' || e.key === ' ') {
+    e.preventDefault();          // evita rolar a página / clicar em botão focado
+    if (!e.repeat) acaoPrincipal();
+  } else if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+    e.preventDefault();
+    moverTrilho(-1);
+  } else if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+    e.preventDefault();
+    moverTrilho(1);
+  } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+    e.preventDefault();
+    controleVel.direita = true;
+  } else if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+    e.preventDefault();
+    controleVel.esquerda = true;
+  } else if (e.code === 'KeyP') {
+    alternarPausa();
+  } else if (e.code === 'KeyM') {
+    alternarMudo();
+  } else if (e.code === 'Escape' && ajudaAberta) {
+    fecharAjuda();
+  }
+});
+
+// Soltar a tecla volta à velocidade normal
+window.addEventListener('keyup', (e) => {
+  if (e.code === 'ArrowRight' || e.code === 'KeyD') controleVel.direita = false;
+  if (e.code === 'ArrowLeft' || e.code === 'KeyA') controleVel.esquerda = false;
+});
+window.addEventListener('blur', () => {
+  controleVel.direita = controleVel.esquerda = false;
+  controleVel.toque = 0;
+});
+
+/**
+ * Toque/mouse no jogo: diferencia "toque" de "deslizar".
+ * - Deslizar para cima/baixo (mais de 30 px) → troca de trilho na hora.
+ * - Arrastar para a direita/esquerda e segurar → acelera/freia até soltar.
+ * - Toque rápido (sem deslizar) → troca o bit ao soltar.
+ */
+let gesto = null;
+canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  gesto = { x: e.clientX, y: e.clientY, deslizou: false };
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!gesto || gesto.deslizou) return;
+  const dx = e.clientX - gesto.x;
+  const dy = e.clientY - gesto.y;
+  if (Math.abs(dy) > 30 && Math.abs(dy) > Math.abs(dx)) {
+    gesto.deslizou = true;
+    som.iniciar();
+    moverTrilho(dy < 0 ? -1 : 1);
+  } else if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) {
+    gesto.deslizou = true;
+    controleVel.toque = dx > 0 ? 1 : -1;
+  }
+});
+function terminarGesto() {
+  gesto = null;
+  controleVel.toque = 0;
+}
+canvas.addEventListener('pointerup', () => {
+  if (gesto && !gesto.deslizou) acaoPrincipal();
+  terminarGesto();
+});
+canvas.addEventListener('pointercancel', terminarGesto);
+telas.inicio.addEventListener('pointerdown', (e) => { if (!e.target.closest('button')) acaoPrincipal(); });
+telas.pausa.addEventListener('pointerdown', () => alternarPausa());
+
+/** Liga um botão a uma função e tira o foco dele (para o ESPAÇO não "clicar" de novo). */
+function ligarBotao(id, funcao) {
+  const botao = el(id);
+  botao.addEventListener('click', () => { som.iniciar(); funcao(); botao.blur(); });
+}
+ligarBotao('btnPausa', alternarPausa);
+ligarBotao('btnMudo', alternarMudo);
+ligarBotao('btnReiniciar', iniciarJogo);
+ligarBotao('btnAjudaInicio', abrirAjuda);
+ligarBotao('btnAjudaGO', abrirAjuda);
+ligarBotao('btnFecharAjuda', fecharAjuda);
+
+// Pausa automática ao trocar de aba
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && jogo.estado === 'jogando') alternarPausa();
+});
+window.addEventListener('resize', redimensionar);
+
+/** Loop principal: delta time (em segundos) deixa a velocidade igual em 30, 60 ou 144 FPS. */
+let ultimoQuadro = performance.now();
+function quadro(agora) {
+  const dt = Math.min(0.05, (agora - ultimoQuadro) / 1000); // limita saltos (ex.: aba em segundo plano)
+  ultimoQuadro = agora;
+  if (jogo.estado !== 'pausado') atualizar(dt);
+  desenhar();
+  requestAnimationFrame(quadro);
+}
+
+// Inicialização
+redimensionar();
+montarAjuda();
+atualizarHUD();
+el('btnMudo').textContent = som.mudo ? '🔇' : '🔊';
+testarLogica(); // verificação da lógica — veja o resultado no console (F12)
+requestAnimationFrame(quadro);
+</script>
+</body>
+</html>
