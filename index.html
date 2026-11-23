@@ -131,8 +131,8 @@
 
   /* ---------- Aviso de nova porta (embaixo, para não cobrir os trilhos) ---------- */
   #aviso {
-    position: fixed; bottom: max(16px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 6;
-    pointer-events: none; text-align: center;
+    position: fixed; top: calc(max(12px, env(safe-area-inset-top)) + 60px); left: 50%; transform: translateX(-50%); z-index: 6;
+    pointer-events: none; text-align: center; width: max-content;
     background: rgba(17, 24, 39, 0.94); border: 1px solid var(--destaque); border-radius: 14px;
     padding: 10px 16px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
     animation: entrar 0.35s ease-out;
@@ -140,7 +140,54 @@
   }
   #aviso .titulo-aviso { font-size: 19px; font-weight: 900; color: var(--destaque); margin-bottom: 6px; }
   #aviso .tabelas-aviso { display: flex; gap: 16px; justify-content: center; }
-  @keyframes entrar { from { opacity: 0; transform: translate(-50%, 16px); } }
+  @keyframes entrar { from { opacity: 0; transform: translate(-50%, -16px); } }
+  #aviso .historia-aviso { font-size: 14px; color: var(--apagado); max-width: 460px; margin: 0 auto; line-height: 1.4; }
+  #aviso .historia-aviso b { color: var(--texto); }
+
+  /* ---------- AV3: enredo, treino, vitória, avaliação e estatísticas ---------- */
+  .enredo { color: var(--apagado); line-height: 1.5; margin: 0 0 16px; font-size: 15px; }
+  .enredo b { color: var(--texto); }
+  .painel-historia { min-height: 150px; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+  .painel-historia .icone { font-size: 46px; }
+  .painel-historia p { font-size: 17px; line-height: 1.55; }
+  .pontinhos { display: flex; gap: 8px; justify-content: center; margin-top: 14px; }
+  .pontinhos span { width: 8px; height: 8px; border-radius: 50%; background: var(--borda); }
+  .pontinhos span.ativo { background: var(--destaque); }
+  .selo { display: inline-block; font-size: 12px; font-weight: 700; color: var(--verde); border: 1px solid rgba(74,222,128,.4);
+          border-radius: 999px; padding: 2px 10px; margin-top: 8px; }
+  #treino {
+    position: fixed; bottom: max(16px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 6;
+    pointer-events: none; text-align: center; width: max-content; max-width: min(560px, calc(100vw - 24px));
+    background: rgba(17, 24, 39, 0.95); border: 1px solid var(--azul); border-radius: 14px;
+    padding: 10px 16px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); font-size: 15px; line-height: 1.45;
+  }
+  #treino.erro { border-color: var(--vermelho); }
+  #treino.certo { border-color: var(--verde); }
+  #treino .etapa { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--azul); font-weight: 800; }
+  .hud-botoes button.ligado { border-color: #facc15; background: rgba(250, 204, 21, 0.15); }
+  .pergunta { text-align: left; margin: 14px 0 6px; font-weight: 700; }
+  .notas { display: flex; gap: 6px; }
+  .notas button { flex: 1; font: inherit; font-weight: 800; padding: 10px 0; border-radius: 10px; cursor: pointer;
+                  background: transparent; color: var(--texto); border: 1px solid var(--borda); }
+  .notas button.marcado { background: var(--destaque); color: #160b2e; border-color: var(--destaque); }
+  .escala { display: flex; justify-content: space-between; font-size: 11px; color: var(--apagado); margin-top: 3px; }
+  textarea { width: 100%; font: inherit; color: var(--texto); background: rgba(255,255,255,.04); border: 1px solid var(--borda);
+             border-radius: 10px; padding: 10px; resize: vertical; -webkit-user-select: text; user-select: text; }
+  .resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin: 12px 0; }
+  .resumo div { background: rgba(255,255,255,.03); border: 1px solid var(--borda); border-radius: 10px; padding: 8px; }
+  .resumo b { display: block; font-size: 22px; }
+  .resumo span { font-size: 11px; color: var(--apagado); text-transform: uppercase; letter-spacing: .08em; }
+  table.stats { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 14px; margin-top: 8px; }
+  table.stats th, table.stats td { padding: 5px 8px; border-bottom: 1px solid rgba(255,255,255,.07); text-align: right; }
+  table.stats th:first-child, table.stats td:first-child { text-align: left; }
+  table.stats th { color: var(--apagado); font-size: 12px; }
+  .barra { height: 6px; border-radius: 3px; background: var(--vermelho); display: inline-block; vertical-align: middle; margin-left: 6px; }
+  @media (max-width: 400px) {
+    #hudItemRecorde { display: none; }
+    .hud-item { min-width: 54px; padding: 4px 8px; }
+    .valor { font-size: 19px; }
+    .hud-botoes button { width: 36px; height: 36px; }
+  }
 </style>
 </head>
 <body>
@@ -151,33 +198,50 @@
 <div id="hud">
   <div class="hud-info">
     <div class="hud-item"><span class="rotulo">Pontos</span><span id="hudPontos" class="valor">0</span></div>
-    <div class="hud-item"><span class="rotulo">Recorde</span><span id="hudRecorde" class="valor">0</span></div>
+    <div class="hud-item" id="hudItemRecorde"><span class="rotulo">Recorde</span><span id="hudRecorde" class="valor">0</span></div>
+    <div class="hud-item"><span class="rotulo">Setor</span><span id="hudSetor" class="valor">1/5</span></div>
     <div class="hud-item"><span class="rotulo">Bit</span><span id="hudBit" class="valor bit0">0</span></div>
   </div>
   <div class="hud-botoes">
+    <button id="btnDicas" title="Dicas nos portões (H)" aria-label="Ligar/desligar dicas">💡</button>
     <button id="btnPausa" title="Pausar (P)" aria-label="Pausar">⏸</button>
     <button id="btnMudo" title="Som (M)" aria-label="Ligar/desligar som">🔊</button>
   </div>
 </div>
 
-<!-- Aviso temporário de nova porta liberada -->
+<!-- Aviso temporário de novo setor / nova porta liberada -->
 <div id="aviso" class="escondido"></div>
+
+<!-- Instrução do treino guiado -->
+<div id="treino" class="escondido"></div>
 
 <!-- Tela inicial -->
 <div id="telaInicio" class="overlay">
   <div class="cartao">
     <h1>Runner <span>Lógico</span></h1>
-    <p class="sub">Você é um sinal correndo por um circuito</p>
+    <p class="sub">A missão do Bit contra o Ruído</p>
+    <p class="enredo">Um vírus chamado <b>Ruído</b> invadiu o computador e a CPU está se apagando.
+      Você é o <b>Bit</b>, o último sinal limpo: atravesse os <b>5 setores</b> do circuito
+      passando pelos portões lógicos e leve o sinal de reinicialização até o <b>Núcleo da CPU</b>.</p>
     <ul class="regras">
       <li>Você carrega um bit: <b class="c0">0</b> ou <b class="c1">1</b>. Troque com <kbd>ESPAÇO</kbd>, clique ou toque.</li>
       <li>O circuito tem <b>3 trilhos</b>. Mude de trilho com <kbd>↑</kbd> <kbd>↓</kbd> (ou <kbd>W</kbd> <kbd>S</kbd>), ou deslizando o dedo.</li>
       <li>Segure <kbd>→</kbd> para acelerar ou <kbd>←</kbd> para ir devagar (ou <kbd>D</kbd> <kbd>A</kbd>).</li>
       <li>Cada trilho tem uma porta lógica com entrada fixa: <code>AND 1</code>, <code>OR 0</code>, <code>NOT</code>… Escolha o trilho cuja porta você consegue satisfazer!</li>
       <li>Saída = PORTA(seu bit, entrada). Saída <b class="ok">1</b> → passa. Saída <b class="ruim">0</b> → game over. Fuja dos <b class="ruim">bloqueios ✕</b>.</li>
+      <li>Com dificuldade? Ligue o <b>💡</b> (ou tecla <kbd>H</kbd>): cada portão mostra qual bit passa.</li>
     </ul>
-    <p class="piscar">Pressione ESPAÇO ou toque para começar</p>
-    <div class="botoes"><button id="btnAjudaInicio" class="secundario">Como funcionam as portas</button></div>
-    <p class="dica">P = pausa · M = som<br>Celular: toque = troca o bit · deslize ↑↓ = troca de trilho<br>arraste → ou ← e segure = acelera / freia</p>
+    <div class="botoes">
+      <button id="btnJogar">▶ Jogar</button>
+      <button id="btnTreino" class="secundario">🎓 Treino guiado</button>
+    </div>
+    <p id="seloTreino" class="dica">Primeira vez? Faça o treino guiado (1 minuto).</p>
+    <div class="botoes">
+      <button id="btnHistoria" class="secundario">📖 História</button>
+      <button id="btnAjudaInicio" class="secundario">Como funcionam as portas</button>
+      <button id="btnStats" class="secundario">📊 Resultados dos testes</button>
+    </div>
+    <p class="dica">ESPAÇO = jogar · P = pausa · M = som · H = dicas<br>Celular: toque = troca o bit · deslize ↑↓ = troca de trilho<br>arraste → ou ← e segure = acelera / freia</p>
   </div>
 </div>
 
@@ -185,14 +249,76 @@
 <div id="telaPausa" class="overlay escondido">
   <div class="cartao">
     <h2>Pausado</h2>
-    <p>Pressione <kbd>P</kbd>, <kbd>ESPAÇO</kbd> ou toque para continuar.</p>
+    <p>Pressione <kbd>P</kbd>, <kbd>ESPAÇO</kbd> ou toque na tela para continuar.</p>
+    <div class="botoes">
+      <button id="btnContinuar">Continuar</button>
+      <button id="btnAjudaPausa" class="secundario">Portas</button>
+      <button id="btnMenuPausa" class="secundario">Menu</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tela de história (enredo em painéis) -->
+<div id="telaHistoria" class="overlay escondido">
+  <div class="cartao">
+    <div id="painelHistoria" class="painel-historia"></div>
+    <div id="pontinhos" class="pontinhos"></div>
+    <div class="botoes">
+      <button id="btnPularHistoria" class="secundario">Pular</button>
+      <button id="btnProximoHistoria">Próximo ▸</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tela de vitória / fim do treino (conteúdo preenchido pelo JS) -->
+<div id="telaFim" class="overlay escondido">
+  <div class="cartao">
+    <div id="fimIcone" style="font-size:52px"></div>
+    <h2 id="fimTitulo" class="ok"></h2>
+    <p id="fimTexto" class="enredo"></p>
+    <div class="botoes">
+      <button id="btnFimPrincipal"></button>
+      <button id="btnFimMenu" class="secundario">Menu</button>
+    </div>
+  </div>
+</div>
+
+<!-- Avaliação rápida (feedback de usabilidade para a AV3) -->
+<div id="telaAvaliar" class="overlay escondido">
+  <div class="cartao">
+    <h2>Avalie o jogo</h2>
+    <p class="sub">Leva 30 segundos e ajuda a melhorar o Runner Lógico. 1 = nada · 5 = muito</p>
+    <div id="perguntas"></div>
+    <p class="pergunta">Comentário (opcional): o que foi difícil ou o que você mudaria?</p>
+    <textarea id="avComentario" rows="3" maxlength="400"></textarea>
+    <div class="botoes">
+      <button id="btnEnviarAvaliacao">Enviar</button>
+      <button id="btnCancelarAvaliacao" class="secundario">Cancelar</button>
+    </div>
+    <p id="avAviso" class="dica"></p>
+  </div>
+</div>
+
+<!-- Resultados dos testes: estatísticas deste aparelho -->
+<div id="telaStats" class="overlay escondido">
+  <div class="cartao largo">
+    <h2>📊 Resultados dos testes</h2>
+    <p class="dica" style="margin-top:0">Dados salvos neste aparelho (útil para testes na feira ou em sala).</p>
+    <div id="statsConteudo"></div>
+    <textarea id="statsCsv" class="escondido" rows="6" readonly></textarea>
+    <div class="botoes">
+      <button id="btnCopiarCsv" class="secundario">Copiar dados (CSV)</button>
+      <button id="btnZerarStats" class="secundario">Zerar dados</button>
+      <button id="btnFecharStats">Voltar</button>
+    </div>
   </div>
 </div>
 
 <!-- Tela de Game Over educativa -->
 <div id="telaGameOver" class="overlay escondido">
   <div class="cartao">
-    <h2 class="erro">Game Over</h2>
+    <h2 class="erro">Sinal perdido!</h2>
+    <p id="goSetor" class="sub"></p>
     <p id="goPontos"></p>
     <div class="caixa-erro">
       <p>Você bateu em <b id="goPortao"></b></p>
@@ -204,8 +330,10 @@
     <div class="botoes">
       <button id="btnReiniciar">Jogar novamente</button>
       <button id="btnAjudaGO" class="secundario">Todas as portas</button>
+      <button id="btnAvaliarGO" class="secundario">⭐ Avaliar o jogo</button>
+      <button id="btnMenuGO" class="secundario">Menu</button>
     </div>
-    <p class="dica">ou pressione ESPAÇO</p>
+    <p class="dica">ou pressione ESPAÇO para jogar de novo</p>
   </div>
 </div>
 
@@ -260,7 +388,21 @@ const NIVEIS = [
   ['XNOR'],
   ['IMPLICA'],
 ];
+/** Enredo: cada nível é um setor do computador que o Bit atravessa (mesma ordem de NIVEIS). */
+const SETORES = [
+  { nome: 'Barramento de Entrada', icone: '🔌',
+    historia: 'Os portões básicos guardam a entrada do circuito. Passe por eles para chegar à memória.' },
+  { nome: 'Memória RAM', icone: '🧠',
+    historia: 'O Ruído embaralhou a memória! Aqui o XOR só deixa passar um bit DIFERENTE da entrada.' },
+  { nome: 'Unidade Lógica (ULA)', icone: '⚙️',
+    historia: 'Na ULA os portões foram invertidos pelo vírus: NAND e NOR são a negação do AND e do OR.' },
+  { nome: 'Memória Cache', icone: '⚡',
+    historia: 'Quase lá! O XNOR da cache só deixa passar um bit IGUAL à entrada.' },
+  { nome: 'Núcleo da CPU', icone: '💠',
+    historia: 'Último setor! A implicação x → e protege o núcleo: só barra quando x = 1 e e = 0.' },
+];
 const PONTOS_POR_NIVEL = 8; // a cada 8 pontos, um novo nível de portas
+const META_PONTOS = 40;     // pontos para entregar o sinal à CPU (fim da história)
 const NUM_TRILHOS = 3;      // quantidade de trilhos (fios) do circuito
 const BLOQUEIO = 'BLOQUEIO'; // trilho sem saída: obriga o jogador a desviar
 
@@ -391,6 +533,10 @@ function testarLogica() {
     erros.push(`Portões impossíveis inesperados: ${impossiveis.join(', ')}`);
   }
 
+  // Enredo coerente com os níveis e meta alcançável depois do último setor
+  if (SETORES.length !== NIVEIS.length) erros.push('SETORES e NIVEIS com tamanhos diferentes');
+  if (META_PONTOS <= (NIVEIS.length - 1) * PONTOS_POR_NIVEL) erros.push('META_PONTOS chega antes do último setor');
+
   // 3) Gerador de colunas
   const COLUNAS_POR_CASO = 5000;
   const chances = [0, 0.3, 0.5, 0.95];
@@ -441,6 +587,25 @@ function lerArmazenamento(chave, padrao) {
 }
 function gravarArmazenamento(chave, valor) {
   try { localStorage.setItem(chave, String(valor)); } catch (erro) { /* sem armazenamento: ignora */ }
+}
+function lerJSON(chave, padrao) {
+  try { return JSON.parse(lerArmazenamento(chave, 'null')) ?? padrao; } catch (erro) { return padrao; }
+}
+
+/**
+ * ESTATÍSTICAS DOS TESTES (AV3): acertos e erros por portão, partidas e vitórias.
+ * Ficam salvas no aparelho, então num computador da feira acumulam os dados de todos os jogadores.
+ */
+const CHAVE_STATS = 'runnerLogico.stats';
+const CHAVE_AVALIACOES = 'runnerLogico.avaliacoes';
+const stats = Object.assign(
+  { partidas: 0, treinos: 0, vitorias: 0, pontosTotais: 0, bloqueios: 0, portas: {} },
+  lerJSON(CHAVE_STATS, {})
+);
+function salvarStats() { gravarArmazenamento(CHAVE_STATS, JSON.stringify(stats)); }
+function registrarPortao(chave, passou) {
+  const p = stats.portas[chave] || (stats.portas[chave] = [0, 0]); // [acertos, erros]
+  p[passou ? 0 : 1]++;
 }
 
 /** Texto do portão, ex.: "AND 1" ou "NOT". */
@@ -515,6 +680,8 @@ const som = {
   passou()    { [660, 880, 1320].forEach((f, i) => this.nota(f, i * 0.05, 0.1, 'triangle', 0.12)); },
   gameOver()  { this.nota(320, 0, 0.6, 'sawtooth', 0.12, 50); this.nota(160, 0.05, 0.7, 'square', 0.05, 40); },
   novaPorta() { [523, 659, 784, 1047].forEach((f, i) => this.nota(f, i * 0.09, 0.16, 'triangle', 0.1)); },
+  errouTreino() { this.nota(220, 0, 0.25, 'square', 0.07, 140); },
+  vitoria()   { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => this.nota(f, i * 0.11, 0.2, 'triangle', 0.11)); },
 };
 
 
@@ -561,7 +728,11 @@ const jogo = {
   tempoMorte: 0,
   momentoGameOver: 0,
   falha: null,           // dados do portão que derrubou o jogador
+  modo: 'normal',        // 'normal' (missão) ou 'treino' (tutorial guiado)
+  venceu: false,         // já entregou o sinal à CPU nesta partida (segue no modo infinito)
+  dicas: lerArmazenamento('runnerLogico.dicas', '0') === '1', // 💡 mostra qual bit passa em cada portão
 };
+const VEL_TREINO = 150;  // no treino o mundo anda devagar
 
 // Dimensões do mundo "virtual" (ajustadas em redimensionar)
 const canvas = document.getElementById('tela');
@@ -606,21 +777,70 @@ const telas = {
   pausa: el('telaPausa'),
   gameOver: el('telaGameOver'),
   ajuda: el('telaAjuda'),
+  historia: el('telaHistoria'),
+  fim: el('telaFim'),
+  avaliar: el('telaAvaliar'),
+  stats: el('telaStats'),
 };
-let ajudaAberta = false;
+/** Janela aberta por cima do jogo: 'ajuda' | 'historia' | 'avaliar' | 'stats' | null. */
+let modal = null;
 let timerAviso = null;
 
-function iniciarJogo() {
+function abrirModal(nome) {
+  if (modal) telas[modal].classList.add('escondido');
+  modal = nome;
+  telas[nome].classList.remove('escondido');
+}
+function fecharModal() {
+  if (!modal) return;
+  telas[modal].classList.add('escondido');
+  modal = null;
+}
+
+function esconderTelasDeJogo() {
+  ['inicio', 'gameOver', 'pausa', 'fim'].forEach((t) => telas[t].classList.add('escondido'));
+  el('aviso').classList.add('escondido');
+  el('treino').classList.add('escondido');
+}
+
+function iniciarJogo(modo = 'normal') {
+  fecharModal();
   Object.assign(jogo, {
-    estado: 'jogando', pontos: 0, bit: 0, trilho: 1, nivel: 0, velocidade: VEL_INICIAL, fatorVel: 1,
+    estado: 'jogando', modo, venceu: false, pontos: 0, bit: 0, trilho: 1, nivel: 0,
+    velocidade: modo === 'treino' ? VEL_TREINO : VEL_INICIAL, fatorVel: 1,
     colunas: [], particulas: [], textos: [], sequenciaRestante: 0,
     tremor: 0, falha: null, novoRecorde: false,
     proximaColuna: LARG * 0.5, // primeira coluna chega depois de um respiro
   });
   jogo.jogadorY = yTrilho(1);
-  telas.inicio.classList.add('escondido');
-  telas.gameOver.classList.add('escondido');
-  telas.pausa.classList.add('escondido');
+  esconderTelasDeJogo();
+  if (modo === 'treino') {
+    iniciarTreino();
+    stats.treinos++;
+  } else {
+    stats.partidas++;
+  }
+  salvarStats();
+  atualizarHUD();
+}
+
+function voltarAoMenu() {
+  // Saiu de uma missão sem morrer (ex.: depois da vitória): ainda conta pontos e recorde
+  if (jogo.modo === 'normal' && ['jogando', 'pausado', 'vitoria'].includes(jogo.estado)) {
+    stats.pontosTotais += jogo.pontos;
+    salvarStats();
+    if (jogo.pontos > jogo.recorde) {
+      jogo.recorde = jogo.pontos;
+      gravarArmazenamento('runnerLogico.recorde', jogo.recorde);
+    }
+  }
+  clearTimeout(treino.timer);
+  treino.timer = null;
+  fecharModal();
+  esconderTelasDeJogo();
+  Object.assign(jogo, { estado: 'menu', modo: 'normal', colunas: [], particulas: [], textos: [], tremor: 0 });
+  atualizarSeloTreino();
+  telas.inicio.classList.remove('escondido');
   atualizarHUD();
 }
 
@@ -630,6 +850,7 @@ function alternarBit() {
   jogo.pulsoBit = 1;
   som.troca(jogo.bit);
   atualizarHUD();
+  eventoTreino('bit');
 }
 
 /** Ação 2: trocar de trilho (direcao = -1 sobe, +1 desce). */
@@ -639,6 +860,7 @@ function moverTrilho(direcao) {
   if (novo === jogo.trilho) return;
   jogo.trilho = novo;
   som.trilho(direcao < 0);
+  eventoTreino('trilho');
 }
 
 /**
@@ -653,21 +875,25 @@ function modoVelocidade() {
   return 0;
 }
 
-/** Espaço / clique / toque: o que fazer depende do estado atual. */
+/** Espaço / toque no jogo: o que fazer depende do estado atual. */
 function acaoPrincipal() {
   som.iniciar();
-  if (ajudaAberta) { fecharAjuda(); return; }
+  if (modal === 'ajuda') { fecharModal(); return; }
+  if (modal === 'historia') { avancarHistoria(); return; }
+  if (modal) return; // avaliação e estatísticas usam só os botões
   switch (jogo.estado) {
-    case 'menu':     iniciarJogo(); break;
+    case 'menu':     iniciarJogo('normal'); break;
     case 'jogando':  alternarBit(); break;
     case 'pausado':  alternarPausa(); break;
+    case 'vitoria':  botaoFimPrincipal(); break;
     case 'gameover': // pequena espera para não reiniciar sem querer
-      if (performance.now() - jogo.momentoGameOver > 600) iniciarJogo();
+      if (performance.now() - jogo.momentoGameOver > 600) iniciarJogo(jogo.modo);
       break;
   }
 }
 
 function alternarPausa() {
+  if (modal) return;
   if (jogo.estado === 'jogando') {
     jogo.estado = 'pausado';
     telas.pausa.classList.remove('escondido');
@@ -683,36 +909,38 @@ function alternarMudo() {
   el('btnMudo').textContent = som.mudo ? '🔇' : '🔊';
 }
 
-function abrirAjuda() {
-  ajudaAberta = true;
-  telas.ajuda.classList.remove('escondido');
-}
-function fecharAjuda() {
-  ajudaAberta = false;
-  telas.ajuda.classList.add('escondido');
+function alternarDicas() {
+  jogo.dicas = !jogo.dicas;
+  gravarArmazenamento('runnerLogico.dicas', jogo.dicas ? '1' : '0');
+  el('btnDicas').classList.toggle('ligado', jogo.dicas);
 }
 
 function atualizarHUD() {
   el('hudPontos').textContent = jogo.pontos;
   el('hudRecorde').textContent = jogo.recorde;
+  el('hudSetor').textContent = jogo.modo === 'treino' ? '🎓' : jogo.venceu ? '∞' : `${jogo.nivel + 1}/${SETORES.length}`;
   const hudBit = el('hudBit');
   hudBit.textContent = jogo.bit;
   hudBit.className = 'valor bit' + jogo.bit;
 }
 
-/** Mostra "Nova porta: XOR!" com a mini tabela-verdade por 3 segundos. */
-function mostrarAvisoNovaPorta(tipos) {
-  const nomes = tipos.map((t) => PORTAS[t].nome);
-  const titulo = tipos.length > 1 ? `Novas portas: ${nomes.join(' e ')}!` : `Nova porta: ${nomes[0]}!`;
+/**
+ * Ao entrar num setor novo: nome do setor, trecho da história e a regra das portas novas (5 s).
+ * Fica compacto e no topo para não cobrir os trilhos; as tabelas completas estão em "Portas" (pausa/menu).
+ */
+function mostrarAvisoNovaPorta(nivel) {
+  const tipos = NIVEIS[nivel];
+  const setor = SETORES[nivel];
   const aviso = el('aviso');
-  aviso.innerHTML = `<div class="titulo-aviso">${titulo}</div>` +
-    `<div class="tabelas-aviso">${tipos.map((t) => htmlTabela(t, null, true)).join('')}</div>`;
+  aviso.innerHTML = `<div class="titulo-aviso">${setor.icone} Setor ${nivel + 1}: ${setor.nome}</div>` +
+    `<div class="historia-aviso">${setor.historia}<br>` +
+    tipos.map((t) => `<b>${PORTAS[t].nome} (${PORTAS[t].simbolo})</b>: ${PORTAS[t].descricao}`).join('<br>') + '</div>';
   // Reinicia a animação de entrada
   aviso.classList.add('escondido');
   void aviso.offsetWidth;
   aviso.classList.remove('escondido');
   clearTimeout(timerAviso);
-  timerAviso = setTimeout(() => aviso.classList.add('escondido'), 3000);
+  timerAviso = setTimeout(() => aviso.classList.add('escondido'), 5000);
 }
 
 /** Preenche a tela de Game Over com o cálculo que deu errado e a tabela-verdade. */
@@ -721,6 +949,10 @@ function mostrarGameOver() {
   jogo.momentoGameOver = performance.now();
   const f = jogo.falha;
 
+  el('goSetor').textContent = jogo.venceu
+    ? 'O Ruído pegou o Bit no modo infinito.'
+    : `O Ruído interceptou o Bit no Setor ${jogo.nivel + 1}: ${SETORES[jogo.nivel].nome}. ` +
+      `Faltavam ${META_PONTOS - jogo.pontos} portões para a CPU.`;
   el('goPontos').innerHTML = `Pontuação: <b>${jogo.pontos}</b> · Recorde: <b>${jogo.recorde}</b>` +
     (jogo.novoRecorde ? ' <span class="ok">— novo recorde!</span>' : '');
 
@@ -733,16 +965,9 @@ function mostrarGameOver() {
     el('goLegenda').classList.add('escondido');
   } else {
     const p = PORTAS[f.tipo];
-    const certo = bitsQuePassam(f.tipo, f.entrada);
-    const args = p.unaria ? `${f.bit}` : `${f.bit}, ${f.entrada}`;
-    const simbolico = p.unaria ? `${p.simbolo}${f.bit}` : `${f.bit} ${p.simbolo} ${f.entrada}`;
     el('goPortao').textContent = 'o portão ' + rotuloPortao(f.tipo, f.entrada);
-    el('goCalculo').innerHTML = `${p.nome}(${args}) = <span class="ruim">0</span>` +
-      `<br><small style="opacity:.7">${simbolico} = 0</small>`;
-    el('goExplicacao').innerHTML =
-      `Você estava com o bit <b class="c${f.bit}">${f.bit}</b>. ` +
-      `Para passar, precisava do bit <b class="c${certo[0]}">${certo.join(' ou ')}</b> ` +
-      `(ou trocar de trilho).<br><small>${p.descricao}</small>`;
+    el('goCalculo').innerHTML = explicarCalculo(f).calculo;
+    el('goExplicacao').innerHTML = explicarCalculo(f).texto + `<br><small>${p.descricao}</small>`;
     el('goTabela').innerHTML = htmlTabela(f.tipo, { x: f.bit, e: f.entrada });
     el('goLegenda').classList.remove('escondido');
   }
@@ -751,11 +976,291 @@ function mostrarGameOver() {
   telas.gameOver.classList.remove('escondido');
 }
 
+/** Texto do cálculo que deu 0, usado no Game Over e no treino. f = {tipo, entrada, bit}. */
+function explicarCalculo(f) {
+  const p = PORTAS[f.tipo];
+  const certo = bitsQuePassam(f.tipo, f.entrada);
+  const args = p.unaria ? `${f.bit}` : `${f.bit}, ${f.entrada}`;
+  const simbolico = p.unaria ? `${p.simbolo}${f.bit}` : `${f.bit} ${p.simbolo} ${f.entrada}`;
+  return {
+    curto: `${p.nome}(${args}) = 0`,
+    calculo: `${p.nome}(${args}) = <span class="ruim">0</span><br><small style="opacity:.7">${simbolico} = 0</small>`,
+    texto: `Você estava com o bit <b class="c${f.bit}">${f.bit}</b>. ` +
+           `Para passar, precisava do bit <b class="c${certo[0]}">${certo.join(' ou ')}</b> (ou trocar de trilho).`,
+  };
+}
+
 /** Monta a grade da tela "Como funcionam as portas". */
 function montarAjuda() {
   el('ajudaGrade').innerHTML = Object.keys(PORTAS).map((tipo) =>
     `<div class="card-porta">${htmlTabela(tipo)}<p>${PORTAS[tipo].descricao}</p></div>`
   ).join('');
+}
+
+/** Tela de fim (vitória da missão ou conclusão do treino). */
+let acaoFim = null;
+function mostrarFim(icone, titulo, texto, rotuloBotao, acao) {
+  el('fimIcone').textContent = icone;
+  el('fimTitulo').textContent = titulo;
+  el('fimTexto').innerHTML = texto;
+  el('btnFimPrincipal').textContent = rotuloBotao;
+  acaoFim = acao;
+  el('aviso').classList.add('escondido');
+  el('treino').classList.add('escondido');
+  telas.fim.classList.remove('escondido');
+}
+function botaoFimPrincipal() {
+  telas.fim.classList.add('escondido');
+  if (acaoFim) acaoFim();
+}
+
+/** Chegou a META_PONTOS: o sinal chega à CPU. O jogo congela até o jogador escolher. */
+function mostrarVitoria() {
+  jogo.venceu = true;
+  jogo.estado = 'vitoria';
+  stats.vitorias++;
+  salvarStats();
+  som.vitoria();
+  mostrarFim('💠', 'Sistema restaurado!',
+    `O Bit atravessou os 5 setores e entregou o sinal ao <b>Núcleo da CPU</b>. O computador reiniciou e o Ruído foi expulso!<br><br>` +
+    `Mas ecos do Ruído ainda vagam pelo circuito… Continue no <b>modo infinito</b> para bater seu recorde (${jogo.pontos} pontos até agora).`,
+    'Continuar no modo infinito',
+    () => { jogo.estado = 'jogando'; jogo.proximaColuna = Math.max(jogo.proximaColuna, LARG * 0.5); atualizarHUD(); });
+}
+
+
+// ---------------------------------------------------------------------
+// 6.1 HISTÓRIA (enredo em painéis, abre sozinha na primeira visita)
+// ---------------------------------------------------------------------
+const HISTORIA = [
+  { icone: '💻', texto: 'Dentro de um computador, bilhões de sinais correm pelos fios carregando <b>bits</b>: <b class="c0">0</b> e <b class="c1">1</b>. Tudo funcionava em harmonia…' },
+  { icone: '👾', texto: '…até que o <b class="ruim">Ruído</b>, um vírus de interferência, invadiu a placa-mãe. Ele corrompeu trilhos (os <b class="ruim">bloqueios ✕</b>) e embaralhou as portas lógicas. A CPU está se apagando!' },
+  { icone: '🔵', texto: 'Você é o <b>Bit</b>, o último sinal limpo do sistema. Sua missão: atravessar os <b>5 setores</b> do circuito e levar o sinal de reinicialização até o <b>Núcleo da CPU</b>.' },
+  { icone: '🚪', texto: 'Cada portão lógico só deixa passar quem gerar <b class="ok">saída 1</b>. Escolha o trilho certo e troque seu bit na hora certa. São <b>40 portões</b> até a CPU. O sistema conta com você!' },
+];
+let paginaHistoria = 0;
+function abrirHistoria() {
+  paginaHistoria = 0;
+  desenharHistoria();
+  abrirModal('historia');
+  gravarArmazenamento('runnerLogico.viuHistoria', '1');
+}
+function desenharHistoria() {
+  const pg = HISTORIA[paginaHistoria];
+  el('painelHistoria').innerHTML = `<div class="icone">${pg.icone}</div><p>${pg.texto}</p>`;
+  el('pontinhos').innerHTML = HISTORIA.map((_, i) => `<span class="${i === paginaHistoria ? 'ativo' : ''}"></span>`).join('');
+  el('btnProximoHistoria').textContent = paginaHistoria === HISTORIA.length - 1 ? 'Vamos lá!' : 'Próximo ▸';
+}
+function avancarHistoria() {
+  if (paginaHistoria < HISTORIA.length - 1) { paginaHistoria++; desenharHistoria(); }
+  else fecharModal();
+}
+
+
+// ---------------------------------------------------------------------
+// 6.2 TREINO GUIADO (tutorial interativo: ninguém perde, o passo se repete)
+// ---------------------------------------------------------------------
+const B = { tipo: BLOQUEIO, entrada: null };
+const PASSOS_TREINO = [
+  { espera: 'bit', texto: 'Este é o <b>Bit</b>, você! O número e a cor mostram o bit que você carrega. ' +
+      'Troque o bit: <kbd>ESPAÇO</kbd>, clique ou toque na tela.' },
+  { espera: 'trilho', texto: 'Agora mude de trilho: <kbd>↑</kbd> <kbd>↓</kbd> (ou <kbd>W</kbd> <kbd>S</kbd>), ou deslize o dedo para cima/baixo.' },
+  { coluna: () => [{ tipo: 'AND', entrada: 1 }, { tipo: 'AND', entrada: 1 }, { tipo: 'AND', entrada: 1 }],
+    texto: 'Lá vem um portão <b>AND 1</b>. O AND só dá <b class="ok">1</b> quando os dois são 1. ' +
+      'Deixe seu bit em <b class="c1">1</b> antes de chegar!' },
+  { coluna: () => [{ tipo: 'NOT', entrada: null }, { tipo: 'NOT', entrada: null }, { tipo: 'NOT', entrada: null }],
+    texto: 'O <b>NOT</b> inverte o bit: NOT(0) = 1 e NOT(1) = 0. Para passar, seu bit precisa ser <b class="c0">0</b>.' },
+  { coluna: () => { // OR 0 num trilho diferente do atual, o resto bloqueado: obriga a desviar
+      const livre = (jogo.trilho + 1 + Math.floor(Math.random() * 2)) % NUM_TRILHOS;
+      return [0, 1, 2].map((i) => (i === livre ? { tipo: 'OR', entrada: 0 } : B));
+    },
+    texto: 'Os <b class="ruim">bloqueios ✕</b> são trilhos corrompidos pelo Ruído: ninguém passa. ' +
+      'Desvie para o trilho do <b>OR 0</b>. Com entrada 0, o OR precisa do seu bit em <b class="c1">1</b>.' },
+  { coluna: () => [{ tipo: 'AND', entrada: 1 }, B, { tipo: 'NOT', entrada: null }],
+    texto: 'Agora é com você: escolha um trilho e o bit certo para a saída ser <b class="ok">1</b>. ' +
+      'Dica: o botão <b>💡</b> (ou <kbd>H</kbd>) mostra qual bit passa em cada portão.' },
+  { espera: 'velocidade', texto: 'Último truque: segure <kbd>→</kbd> para acelerar e <kbd>←</kbd> para frear ' +
+      '(no celular, arraste para o lado e segure). Experimente!' },
+];
+const treino = { passo: 0, aguardandoColuna: false, timer: null };
+
+function iniciarTreino() {
+  clearTimeout(treino.timer);
+  treino.passo = 0;
+  mostrarPassoTreino();
+}
+function mostrarPassoTreino() {
+  const passo = PASSOS_TREINO[treino.passo];
+  mostrarBannerTreino(passo.texto, '');
+  treino.aguardandoColuna = !!passo.coluna;
+}
+function mostrarBannerTreino(html, classe) {
+  const caixa = el('treino');
+  caixa.className = classe;
+  caixa.innerHTML = `<div class="etapa">Treino · passo ${treino.passo + 1} de ${PASSOS_TREINO.length}</div>${html}`;
+}
+/** Avisos de ação do jogador (bit, trilho, velocidade) para os passos que esperam por ela. */
+function eventoTreino(tipo) {
+  if (jogo.modo !== 'treino' || jogo.estado !== 'jogando') return;
+  const passo = PASSOS_TREINO[treino.passo];
+  if (passo && passo.espera === tipo && !treino.timer) concluirPassoTreino('Isso aí! ✓');
+}
+function concluirPassoTreino(mensagem) {
+  mostrarBannerTreino(`<b class="ok">${mensagem}</b>`, 'certo');
+  treino.timer = setTimeout(() => {
+    treino.timer = null;
+    if (jogo.modo !== 'treino' || jogo.estado === 'menu') return;
+    treino.passo++;
+    if (treino.passo >= PASSOS_TREINO.length) terminarTreino();
+    else mostrarPassoTreino();
+  }, 1100);
+}
+function errarPassoTreino(f) {
+  const texto = f.tipo === BLOQUEIO
+    ? 'Você bateu num bloqueio ✕. Troque de trilho antes de chegar nele.'
+    : `${explicarCalculo(f).curto}. ${explicarCalculo(f).texto}`;
+  mostrarBannerTreino(`<b class="ruim">Quase!</b> ${texto}<br>Vamos tentar de novo…`, 'erro');
+  treino.timer = setTimeout(() => {
+    treino.timer = null;
+    if (jogo.modo === 'treino' && jogo.estado !== 'menu') mostrarPassoTreino();
+  }, 2600);
+}
+/** Chamado a cada quadro no treino: cria a coluna do passo quando a pista estiver livre. */
+function atualizarTreino() {
+  if (!treino.aguardandoColuna || treino.timer) return;
+  if (jogo.colunas.some((c) => !c.resolvida)) return;
+  treino.aguardandoColuna = false;
+  const faixas = PASSOS_TREINO[treino.passo].coluna().map((f) => ({ ...f, estado: 'ativo', anim: 0 }));
+  jogo.colunas.push({ x: LARG + CHIP_L, resolvida: false, faixas });
+}
+function terminarTreino() {
+  gravarArmazenamento('runnerLogico.treinoFeito', '1');
+  jogo.estado = 'vitoria';
+  mostrarFim('🎓', 'Treino concluído!',
+    'Você já sabe trocar o bit, mudar de trilho, passar pelos portões e desviar dos bloqueios. ' +
+    'Na missão, novas portas aparecem a cada setor, e as tabelas-verdade ficam em <b>Como funcionam as portas</b>.',
+    'Começar a missão',
+    () => iniciarJogo('normal'));
+}
+function atualizarSeloTreino() {
+  const feito = lerArmazenamento('runnerLogico.treinoFeito', '0') === '1';
+  el('seloTreino').innerHTML = feito ? '<span class="selo">✓ Treino concluído</span>' : 'Primeira vez? Faça o treino guiado (1 minuto).';
+}
+
+
+// ---------------------------------------------------------------------
+// 6.3 AVALIAÇÃO RÁPIDA E RESULTADOS DOS TESTES (feedback para a AV3)
+// ---------------------------------------------------------------------
+const PERGUNTAS = [
+  { id: 'diversao', texto: 'O jogo foi divertido?' },
+  { id: 'instrucoes', texto: 'As instruções foram claras?' },
+  { id: 'aprendizado', texto: 'Você entendeu melhor as portas lógicas?' },
+];
+const respostas = {};
+function abrirAvaliacao() {
+  PERGUNTAS.forEach((p) => { respostas[p.id] = 0; });
+  el('perguntas').innerHTML = PERGUNTAS.map((p) =>
+    `<p class="pergunta">${p.texto}</p><div class="notas" data-pergunta="${p.id}">` +
+    [1, 2, 3, 4, 5].map((n) => `<button type="button" data-nota="${n}">${n}</button>`).join('') + '</div>'
+  ).join('');
+  el('avComentario').value = '';
+  el('avAviso').textContent = '';
+  abrirModal('avaliar');
+}
+el('perguntas').addEventListener('click', (e) => {
+  const botao = e.target.closest('button[data-nota]');
+  if (!botao) return;
+  const grupo = botao.parentElement;
+  respostas[grupo.dataset.pergunta] = Number(botao.dataset.nota);
+  grupo.querySelectorAll('button').forEach((b) => b.classList.toggle('marcado', b === botao));
+});
+function enviarAvaliacao() {
+  if (PERGUNTAS.some((p) => !respostas[p.id])) {
+    el('avAviso').innerHTML = '<span class="ruim">Responda as 3 perguntas (de 1 a 5).</span>';
+    return;
+  }
+  const lista = lerJSON(CHAVE_AVALIACOES, []);
+  lista.push({ data: new Date().toISOString(), ...respostas, pontos: jogo.pontos,
+               comentario: el('avComentario').value.trim() });
+  gravarArmazenamento(CHAVE_AVALIACOES, JSON.stringify(lista));
+  fecharModal();
+  mostrarToast('Obrigado pela avaliação! ⭐');
+}
+function mostrarToast(texto) {
+  const aviso = el('aviso');
+  aviso.innerHTML = `<div class="titulo-aviso" style="margin:0">${texto}</div>`;
+  aviso.classList.remove('escondido');
+  clearTimeout(timerAviso);
+  timerAviso = setTimeout(() => aviso.classList.add('escondido'), 2200);
+}
+
+const media = (lista, campo) => lista.length ? (lista.reduce((s, a) => s + a[campo], 0) / lista.length).toFixed(1) : '–';
+function abrirStats() {
+  const avaliacoes = lerJSON(CHAVE_AVALIACOES, []);
+  const linhas = Object.entries(stats.portas)
+    .map(([chave, [ok, erro]]) => ({ chave, ok, erro, taxa: erro / (ok + erro) }))
+    .sort((a, b) => b.taxa - a.taxa || b.erro - a.erro);
+  const totalOk = linhas.reduce((s, l) => s + l.ok, 0);
+  const totalErro = linhas.reduce((s, l) => s + l.erro, 0);
+  const pct = (x) => `${Math.round(x * 100)}%`;
+
+  let html = '<div class="resumo">' +
+    `<div><b>${stats.partidas}</b><span>Partidas</span></div>` +
+    `<div><b>${stats.treinos}</b><span>Treinos</span></div>` +
+    `<div><b>${stats.vitorias}</b><span>Chegaram à CPU</span></div>` +
+    `<div><b>${stats.partidas ? (stats.pontosTotais / stats.partidas).toFixed(1) : '–'}</b><span>Pontos/partida</span></div>` +
+    `<div><b>${totalOk + totalErro ? pct(totalOk / (totalOk + totalErro)) : '–'}</b><span>Acerto nos portões</span></div>` +
+    `<div><b>${stats.bloqueios}</b><span>Batidas em ✕</span></div>` +
+    '</div>';
+
+  html += `<h3 style="margin-top:14px">Avaliações (${avaliacoes.length})</h3>`;
+  html += avaliacoes.length
+    ? '<div class="resumo">' + PERGUNTAS.map((p) => `<div><b>${media(avaliacoes, p.id)}</b><span>${p.texto}</span></div>`).join('') + '</div>' +
+      avaliacoes.filter((a) => a.comentario).slice(-5).reverse()
+        .map((a) => `<p class="dica" style="text-align:left">“${escaparHtml(a.comentario)}”</p>`).join('')
+    : '<p class="dica">Nenhuma avaliação ainda. Ela aparece no botão ⭐ da tela de Game Over.</p>';
+
+  html += '<h3 style="margin-top:14px">Portões que mais derrubam jogadores</h3>';
+  html += linhas.length
+    ? '<table class="stats"><thead><tr><th>Portão</th><th>Acertos</th><th>Erros</th><th>% de erro</th></tr></thead><tbody>' +
+      linhas.map((l) => `<tr><td>${l.chave}</td><td>${l.ok}</td><td>${l.erro}</td>` +
+        `<td>${pct(l.taxa)}<span class="barra" style="width:${Math.round(l.taxa * 60)}px"></span></td></tr>`).join('') +
+      '</tbody></table>'
+    : '<p class="dica">Ainda não há partidas registradas.</p>';
+
+  el('statsConteudo').innerHTML = html;
+  el('statsCsv').classList.add('escondido');
+  abrirModal('stats');
+}
+function escaparHtml(texto) {
+  return texto.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function gerarCsv() {
+  const aspas = (v) => `"${String(v).replace(/"/g, '""')}"`;
+  let csv = 'tipo;portao_ou_data;acertos_ou_diversao;erros_ou_instrucoes;aprendizado;pontos;comentario\n';
+  for (const [chave, [ok, erro]] of Object.entries(stats.portas)) csv += `portao;${chave};${ok};${erro};;;\n`;
+  for (const a of lerJSON(CHAVE_AVALIACOES, [])) {
+    csv += `avaliacao;${a.data};${a.diversao};${a.instrucoes};${a.aprendizado};${a.pontos};${aspas(a.comentario)}\n`;
+  }
+  csv += `resumo;partidas=${stats.partidas} treinos=${stats.treinos} vitorias=${stats.vitorias} bloqueios=${stats.bloqueios};;;;;\n`;
+  return csv;
+}
+function copiarCsv() {
+  const csv = gerarCsv();
+  const caixa = el('statsCsv');
+  caixa.value = csv;
+  caixa.classList.remove('escondido');
+  caixa.select();
+  const ok = () => mostrarToast('Dados copiados! Cole numa planilha.');
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(csv).then(ok, () => {});
+  else { try { if (document.execCommand('copy')) ok(); } catch (erro) { /* o texto fica selecionado na caixa */ } }
+}
+function zerarStats() {
+  if (!confirm('Apagar todas as estatísticas e avaliações deste aparelho?')) return;
+  Object.assign(stats, { partidas: 0, treinos: 0, vitorias: 0, pontosTotais: 0, bloqueios: 0, portas: {} });
+  salvarStats();
+  gravarArmazenamento(CHAVE_AVALIACOES, '[]');
+  abrirStats();
 }
 
 
@@ -797,6 +1302,26 @@ function resolverColuna(coluna) {
   const y = yTrilho(jogo.trilho);
 
   const saida = faixa.tipo === BLOQUEIO ? 0 : calcular(faixa.tipo, jogo.bit, faixa.entrada);
+  const falha = { tipo: faixa.tipo, entrada: faixa.entrada, bit: jogo.bit };
+
+  // Treino: ninguém perde. Acertou → próximo passo; errou → explica e repete o passo.
+  if (jogo.modo === 'treino') {
+    faixa.estado = saida === 1 ? 'aberto' : 'quebrou';
+    if (saida === 1) {
+      criarExplosao(coluna.x, y, COR_SUCESSO, 18);
+      jogo.textos.push({ x: coluna.x, y: y - CHIP_A / 2 - 14, texto: '✓', vida: 1 });
+      som.passou();
+      concluirPassoTreino('Passou! Saída 1 ✓');
+    } else {
+      criarExplosao(jogadorX, y, COR_ERRO, 20);
+      jogo.tremor = 0.5;
+      som.errouTreino();
+      errarPassoTreino(falha);
+    }
+    return;
+  }
+
+  if (faixa.tipo !== BLOQUEIO) registrarPortao(chavePortao(faixa), saida === 1);
   if (saida === 1) {
     faixa.estado = 'aberto';
     jogo.pontos++;
@@ -805,14 +1330,18 @@ function resolverColuna(coluna) {
     som.passou();
     verificarNivel();
     atualizarHUD();
+    if (!jogo.venceu && jogo.pontos >= META_PONTOS) mostrarVitoria();
   } else {
     faixa.estado = 'quebrou';
-    jogo.falha = { tipo: faixa.tipo, entrada: faixa.entrada, bit: jogo.bit };
+    jogo.falha = falha;
     jogo.estado = 'morrendo';
     jogo.tempoMorte = 1.0;
     jogo.tremor = 1;
     criarExplosao(jogadorX, y, COR_ERRO, 36);
     som.gameOver();
+    if (faixa.tipo === BLOQUEIO) stats.bloqueios++;
+    stats.pontosTotais += jogo.pontos;
+    salvarStats();
     if (jogo.pontos > jogo.recorde) {
       jogo.recorde = jogo.pontos;
       jogo.novoRecorde = true;
@@ -827,8 +1356,11 @@ function verificarNivel() {
   const novoNivel = Math.min(NIVEIS.length - 1, Math.floor(jogo.pontos / PONTOS_POR_NIVEL));
   if (novoNivel > jogo.nivel) {
     jogo.nivel = novoNivel;
-    mostrarAvisoNovaPorta(NIVEIS[novoNivel]);
+    mostrarAvisoNovaPorta(novoNivel);
     som.novaPorta();
+    // Respiro para ler o aviso: a próxima coluna demora um pouco mais e não vem em sequência rápida
+    jogo.sequenciaRestante = 0;
+    jogo.proximaColuna = Math.max(jogo.proximaColuna, jogo.velocidade * 2.2);
   }
 }
 
@@ -850,11 +1382,12 @@ function atualizar(dt) {
 
   if (jogo.estado === 'jogando') {
     // Velocidade sobe suavemente até o alvo definido pela pontuação
-    const alvo = Math.min(VEL_MAXIMA, VEL_INICIAL + jogo.pontos * VEL_POR_PONTO);
+    const alvo = jogo.modo === 'treino' ? VEL_TREINO : Math.min(VEL_MAXIMA, VEL_INICIAL + jogo.pontos * VEL_POR_PONTO);
     jogo.velocidade += (alvo - jogo.velocidade) * Math.min(1, dt * 1.5);
 
     // Acelerar / frear: o multiplicador muda suavemente até o alvo
     const modo = modoVelocidade();
+    if (modo !== 0) eventoTreino('velocidade');
     const alvoFator = modo === 1 ? FATOR_RAPIDO : modo === -1 ? FATOR_DEVAGAR : 1;
     jogo.fatorVel += (alvoFator - jogo.fatorVel) * Math.min(1, dt * 6);
 
@@ -863,9 +1396,11 @@ function atualizar(dt) {
     jogo.distancia += deslocamento;
     for (const c of jogo.colunas) c.x -= deslocamento;
 
-    // Criação de colunas de portões
+    // Criação de colunas de portões (no treino, quem cria é o roteiro do passo)
     jogo.proximaColuna -= deslocamento;
-    if (jogo.proximaColuna <= 0) {
+    if (jogo.modo === 'treino') {
+      atualizarTreino();
+    } else if (jogo.proximaColuna <= 0) {
       criarColuna();
       jogo.proximaColuna = calcularEspaco();
     }
@@ -874,7 +1409,7 @@ function atualizar(dt) {
     for (const c of jogo.colunas) {
       if (!c.resolvida && c.x - CHIP_L / 2 <= jogadorX + RAIO_JOGADOR) {
         resolverColuna(c);
-        if (jogo.estado !== 'jogando') break;
+        if (jogo.estado !== 'jogando') break; // morreu ou venceu: para de checar nesta volta
       }
     }
     jogo.colunas = jogo.colunas.filter((c) => c.x > -200);
@@ -1071,6 +1606,20 @@ function desenharChip(f, x, y) {
     ctx.font = '600 14px ui-monospace, Menlo, Consolas, monospace';
     ctx.fillStyle = cor;
     ctx.fillText(formulaPortao(f.tipo, f.entrada), 0, 15);
+
+    // 💡 Modo dica: mostra embaixo do chip quais bits passam
+    if (jogo.dicas && f.estado === 'ativo') {
+      const passam = bitsQuePassam(f.tipo, f.entrada);
+      ctx.font = '700 13px system-ui, sans-serif';
+      const prefixo = '💡 passa com ';
+      const resto = passam.length === 2 ? '0 ou 1' : String(passam[0]);
+      const larguraTotal = ctx.measureText(prefixo + resto).width;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#facc15';
+      ctx.fillText(prefixo, -larguraTotal / 2, CHIP_A / 2 + 20);
+      ctx.fillStyle = passam.length === 2 ? COR_SUCESSO : COR_BIT[passam[0]];
+      ctx.fillText(resto, -larguraTotal / 2 + ctx.measureText(prefixo).width, CHIP_A / 2 + 20);
+    }
   }
   ctx.restore();
 }
@@ -1157,6 +1706,12 @@ function desenharEfeitos() {
 // 9. ENTRADAS (teclado, mouse, toque) e LOOP PRINCIPAL
 // =====================================================================
 window.addEventListener('keydown', (e) => {
+  if (e.target.closest && e.target.closest('textarea, input')) return; // digitando o comentário da avaliação
+  if (e.code === 'Escape') {
+    if (modal) fecharModal();
+    else if (jogo.estado === 'jogando') alternarPausa();
+    return;
+  }
   if (e.code === 'Space' || e.key === ' ') {
     e.preventDefault();          // evita rolar a página / clicar em botão focado
     if (!e.repeat) acaoPrincipal();
@@ -1176,8 +1731,8 @@ window.addEventListener('keydown', (e) => {
     alternarPausa();
   } else if (e.code === 'KeyM') {
     alternarMudo();
-  } else if (e.code === 'Escape' && ajudaAberta) {
-    fecharAjuda();
+  } else if (e.code === 'KeyH') {
+    alternarDicas();
   }
 });
 
@@ -1224,20 +1779,40 @@ canvas.addEventListener('pointerup', () => {
   terminarGesto();
 });
 canvas.addEventListener('pointercancel', terminarGesto);
-telas.inicio.addEventListener('pointerdown', (e) => { if (!e.target.closest('button')) acaoPrincipal(); });
-telas.pausa.addEventListener('pointerdown', () => alternarPausa());
+// Na tela inicial o jogo só começa pelo botão ▶ Jogar ou ESPAÇO (antes, rolar o texto no celular iniciava sem querer)
+telas.pausa.addEventListener('pointerdown', (e) => { if (!e.target.closest('button')) alternarPausa(); });
 
 /** Liga um botão a uma função e tira o foco dele (para o ESPAÇO não "clicar" de novo). */
 function ligarBotao(id, funcao) {
   const botao = el(id);
   botao.addEventListener('click', () => { som.iniciar(); funcao(); botao.blur(); });
 }
+const abrirAjuda = () => abrirModal('ajuda');
 ligarBotao('btnPausa', alternarPausa);
 ligarBotao('btnMudo', alternarMudo);
-ligarBotao('btnReiniciar', iniciarJogo);
+ligarBotao('btnDicas', alternarDicas);
+ligarBotao('btnJogar', () => iniciarJogo('normal'));
+ligarBotao('btnTreino', () => iniciarJogo('treino'));
+ligarBotao('btnHistoria', abrirHistoria);
+ligarBotao('btnStats', abrirStats);
+ligarBotao('btnReiniciar', () => iniciarJogo(jogo.modo));
+ligarBotao('btnMenuGO', voltarAoMenu);
+ligarBotao('btnAvaliarGO', abrirAvaliacao);
+ligarBotao('btnContinuar', alternarPausa);
+ligarBotao('btnAjudaPausa', abrirAjuda);
+ligarBotao('btnMenuPausa', voltarAoMenu);
 ligarBotao('btnAjudaInicio', abrirAjuda);
 ligarBotao('btnAjudaGO', abrirAjuda);
-ligarBotao('btnFecharAjuda', fecharAjuda);
+ligarBotao('btnFecharAjuda', fecharModal);
+ligarBotao('btnProximoHistoria', avancarHistoria);
+ligarBotao('btnPularHistoria', fecharModal);
+ligarBotao('btnFimPrincipal', botaoFimPrincipal);
+ligarBotao('btnFimMenu', voltarAoMenu);
+ligarBotao('btnEnviarAvaliacao', enviarAvaliacao);
+ligarBotao('btnCancelarAvaliacao', fecharModal);
+ligarBotao('btnCopiarCsv', copiarCsv);
+ligarBotao('btnZerarStats', zerarStats);
+ligarBotao('btnFecharStats', fecharModal);
 
 // Pausa automática ao trocar de aba
 document.addEventListener('visibilitychange', () => {
@@ -1260,6 +1835,9 @@ redimensionar();
 montarAjuda();
 atualizarHUD();
 el('btnMudo').textContent = som.mudo ? '🔇' : '🔊';
+el('btnDicas').classList.toggle('ligado', jogo.dicas);
+atualizarSeloTreino();
+if (lerArmazenamento('runnerLogico.viuHistoria', '0') !== '1') abrirHistoria(); // enredo na primeira visita
 testarLogica(); // verificação da lógica — veja o resultado no console (F12)
 requestAnimationFrame(quadro);
 </script>
