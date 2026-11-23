@@ -32,11 +32,6 @@ Portas, liberadas uma por setor: NOT, AND, OR → XOR → NAND, NOR → XNOR →
 - **Game Over educativo**: mostra o cálculo que deu 0 (ex.: `XOR(1, 1) = 0`) e a tabela-verdade com a linha do erro destacada.
 - **Como funcionam as portas**: tabelas-verdade de todas as portas, disponível no menu, na pausa e no Game Over.
 
-## Testes com usuários (AV3)
-
-- **⭐ Avaliar o jogo** (no Game Over): 3 notas de 1 a 5 (diversão, clareza das instruções, aprendizado) e um comentário.
-- **📊 Resultados dos testes** (no menu): partidas, treinos, vitórias, taxa de acerto, portões com mais erros e médias das avaliações. Os dados ficam salvos no aparelho, então um computador usado na feira acumula os resultados de todos os jogadores. O botão **Copiar dados (CSV)** exporta tudo para uma planilha.
-
 ## Tecnologia
 
 Um único arquivo HTML com CSS e JavaScript puro (Canvas e Web Audio), sem dependências. Ao abrir a página, um teste automático confere as tabelas-verdade e o gerador de portões (resultado no console, F12).

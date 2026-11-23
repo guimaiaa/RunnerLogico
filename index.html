@@ -144,7 +144,7 @@
   #aviso .historia-aviso { font-size: 14px; color: var(--apagado); max-width: 460px; margin: 0 auto; line-height: 1.4; }
   #aviso .historia-aviso b { color: var(--texto); }
 
-  /* ---------- AV3: enredo, treino, vitória, avaliação e estatísticas ---------- */
+  /* ---------- AV3: enredo, treino e vitória ---------- */
   .enredo { color: var(--apagado); line-height: 1.5; margin: 0 0 16px; font-size: 15px; }
   .enredo b { color: var(--texto); }
   .painel-historia { min-height: 150px; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
@@ -165,23 +165,6 @@
   #treino.certo { border-color: var(--verde); }
   #treino .etapa { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--azul); font-weight: 800; }
   .hud-botoes button.ligado { border-color: #facc15; background: rgba(250, 204, 21, 0.15); }
-  .pergunta { text-align: left; margin: 14px 0 6px; font-weight: 700; }
-  .notas { display: flex; gap: 6px; }
-  .notas button { flex: 1; font: inherit; font-weight: 800; padding: 10px 0; border-radius: 10px; cursor: pointer;
-                  background: transparent; color: var(--texto); border: 1px solid var(--borda); }
-  .notas button.marcado { background: var(--destaque); color: #160b2e; border-color: var(--destaque); }
-  .escala { display: flex; justify-content: space-between; font-size: 11px; color: var(--apagado); margin-top: 3px; }
-  textarea { width: 100%; font: inherit; color: var(--texto); background: rgba(255,255,255,.04); border: 1px solid var(--borda);
-             border-radius: 10px; padding: 10px; resize: vertical; -webkit-user-select: text; user-select: text; }
-  .resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin: 12px 0; }
-  .resumo div { background: rgba(255,255,255,.03); border: 1px solid var(--borda); border-radius: 10px; padding: 8px; }
-  .resumo b { display: block; font-size: 22px; }
-  .resumo span { font-size: 11px; color: var(--apagado); text-transform: uppercase; letter-spacing: .08em; }
-  table.stats { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 14px; margin-top: 8px; }
-  table.stats th, table.stats td { padding: 5px 8px; border-bottom: 1px solid rgba(255,255,255,.07); text-align: right; }
-  table.stats th:first-child, table.stats td:first-child { text-align: left; }
-  table.stats th { color: var(--apagado); font-size: 12px; }
-  .barra { height: 6px; border-radius: 3px; background: var(--vermelho); display: inline-block; vertical-align: middle; margin-left: 6px; }
   @media (max-width: 400px) {
     #hudItemRecorde { display: none; }
     .hud-item { min-width: 54px; padding: 4px 8px; }
@@ -239,7 +222,6 @@
     <div class="botoes">
       <button id="btnHistoria" class="secundario">📖 História</button>
       <button id="btnAjudaInicio" class="secundario">Como funcionam as portas</button>
-      <button id="btnStats" class="secundario">📊 Resultados dos testes</button>
     </div>
     <p class="dica">ESPAÇO = jogar · P = pausa · M = som · H = dicas<br>Celular: toque = troca o bit · deslize ↑↓ = troca de trilho<br>arraste → ou ← e segure = acelera / freia</p>
   </div>
@@ -283,37 +265,6 @@
   </div>
 </div>
 
-<!-- Avaliação rápida (feedback de usabilidade para a AV3) -->
-<div id="telaAvaliar" class="overlay escondido">
-  <div class="cartao">
-    <h2>Avalie o jogo</h2>
-    <p class="sub">Leva 30 segundos e ajuda a melhorar o Runner Lógico. 1 = nada · 5 = muito</p>
-    <div id="perguntas"></div>
-    <p class="pergunta">Comentário (opcional): o que foi difícil ou o que você mudaria?</p>
-    <textarea id="avComentario" rows="3" maxlength="400"></textarea>
-    <div class="botoes">
-      <button id="btnEnviarAvaliacao">Enviar</button>
-      <button id="btnCancelarAvaliacao" class="secundario">Cancelar</button>
-    </div>
-    <p id="avAviso" class="dica"></p>
-  </div>
-</div>
-
-<!-- Resultados dos testes: estatísticas deste aparelho -->
-<div id="telaStats" class="overlay escondido">
-  <div class="cartao largo">
-    <h2>📊 Resultados dos testes</h2>
-    <p class="dica" style="margin-top:0">Dados salvos neste aparelho (útil para testes na feira ou em sala).</p>
-    <div id="statsConteudo"></div>
-    <textarea id="statsCsv" class="escondido" rows="6" readonly></textarea>
-    <div class="botoes">
-      <button id="btnCopiarCsv" class="secundario">Copiar dados (CSV)</button>
-      <button id="btnZerarStats" class="secundario">Zerar dados</button>
-      <button id="btnFecharStats">Voltar</button>
-    </div>
-  </div>
-</div>
-
 <!-- Tela de Game Over educativa -->
 <div id="telaGameOver" class="overlay escondido">
   <div class="cartao">
@@ -330,7 +281,6 @@
     <div class="botoes">
       <button id="btnReiniciar">Jogar novamente</button>
       <button id="btnAjudaGO" class="secundario">Todas as portas</button>
-      <button id="btnAvaliarGO" class="secundario">⭐ Avaliar o jogo</button>
       <button id="btnMenuGO" class="secundario">Menu</button>
     </div>
     <p class="dica">ou pressione ESPAÇO para jogar de novo</p>
@@ -588,26 +538,6 @@ function lerArmazenamento(chave, padrao) {
 function gravarArmazenamento(chave, valor) {
   try { localStorage.setItem(chave, String(valor)); } catch (erro) { /* sem armazenamento: ignora */ }
 }
-function lerJSON(chave, padrao) {
-  try { return JSON.parse(lerArmazenamento(chave, 'null')) ?? padrao; } catch (erro) { return padrao; }
-}
-
-/**
- * ESTATÍSTICAS DOS TESTES (AV3): acertos e erros por portão, partidas e vitórias.
- * Ficam salvas no aparelho, então num computador da feira acumulam os dados de todos os jogadores.
- */
-const CHAVE_STATS = 'runnerLogico.stats';
-const CHAVE_AVALIACOES = 'runnerLogico.avaliacoes';
-const stats = Object.assign(
-  { partidas: 0, treinos: 0, vitorias: 0, pontosTotais: 0, bloqueios: 0, portas: {} },
-  lerJSON(CHAVE_STATS, {})
-);
-function salvarStats() { gravarArmazenamento(CHAVE_STATS, JSON.stringify(stats)); }
-function registrarPortao(chave, passou) {
-  const p = stats.portas[chave] || (stats.portas[chave] = [0, 0]); // [acertos, erros]
-  p[passou ? 0 : 1]++;
-}
-
 /** Texto do portão, ex.: "AND 1" ou "NOT". */
 function rotuloPortao(tipo, entrada) {
   return PORTAS[tipo].unaria ? PORTAS[tipo].nome : `${PORTAS[tipo].nome} ${entrada}`;
@@ -779,10 +709,8 @@ const telas = {
   ajuda: el('telaAjuda'),
   historia: el('telaHistoria'),
   fim: el('telaFim'),
-  avaliar: el('telaAvaliar'),
-  stats: el('telaStats'),
 };
-/** Janela aberta por cima do jogo: 'ajuda' | 'historia' | 'avaliar' | 'stats' | null. */
+/** Janela aberta por cima do jogo: 'ajuda' | 'historia' | null. */
 let modal = null;
 let timerAviso = null;
 
@@ -814,21 +742,13 @@ function iniciarJogo(modo = 'normal') {
   });
   jogo.jogadorY = yTrilho(1);
   esconderTelasDeJogo();
-  if (modo === 'treino') {
-    iniciarTreino();
-    stats.treinos++;
-  } else {
-    stats.partidas++;
-  }
-  salvarStats();
+  if (modo === 'treino') iniciarTreino();
   atualizarHUD();
 }
 
 function voltarAoMenu() {
-  // Saiu de uma missão sem morrer (ex.: depois da vitória): ainda conta pontos e recorde
+  // Saiu de uma missão sem morrer (ex.: depois da vitória): ainda conta o recorde
   if (jogo.modo === 'normal' && ['jogando', 'pausado', 'vitoria'].includes(jogo.estado)) {
-    stats.pontosTotais += jogo.pontos;
-    salvarStats();
     if (jogo.pontos > jogo.recorde) {
       jogo.recorde = jogo.pontos;
       gravarArmazenamento('runnerLogico.recorde', jogo.recorde);
@@ -880,7 +800,6 @@ function acaoPrincipal() {
   som.iniciar();
   if (modal === 'ajuda') { fecharModal(); return; }
   if (modal === 'historia') { avancarHistoria(); return; }
-  if (modal) return; // avaliação e estatísticas usam só os botões
   switch (jogo.estado) {
     case 'menu':     iniciarJogo('normal'); break;
     case 'jogando':  alternarBit(); break;
@@ -1018,8 +937,6 @@ function botaoFimPrincipal() {
 function mostrarVitoria() {
   jogo.venceu = true;
   jogo.estado = 'vitoria';
-  stats.vitorias++;
-  salvarStats();
   som.vitoria();
   mostrarFim('💠', 'Sistema restaurado!',
     `O Bit atravessou os 5 setores e entregou o sinal ao <b>Núcleo da CPU</b>. O computador reiniciou e o Ruído foi expulso!<br><br>` +
@@ -1148,122 +1065,6 @@ function atualizarSeloTreino() {
 }
 
 
-// ---------------------------------------------------------------------
-// 6.3 AVALIAÇÃO RÁPIDA E RESULTADOS DOS TESTES (feedback para a AV3)
-// ---------------------------------------------------------------------
-const PERGUNTAS = [
-  { id: 'diversao', texto: 'O jogo foi divertido?' },
-  { id: 'instrucoes', texto: 'As instruções foram claras?' },
-  { id: 'aprendizado', texto: 'Você entendeu melhor as portas lógicas?' },
-];
-const respostas = {};
-function abrirAvaliacao() {
-  PERGUNTAS.forEach((p) => { respostas[p.id] = 0; });
-  el('perguntas').innerHTML = PERGUNTAS.map((p) =>
-    `<p class="pergunta">${p.texto}</p><div class="notas" data-pergunta="${p.id}">` +
-    [1, 2, 3, 4, 5].map((n) => `<button type="button" data-nota="${n}">${n}</button>`).join('') + '</div>'
-  ).join('');
-  el('avComentario').value = '';
-  el('avAviso').textContent = '';
-  abrirModal('avaliar');
-}
-el('perguntas').addEventListener('click', (e) => {
-  const botao = e.target.closest('button[data-nota]');
-  if (!botao) return;
-  const grupo = botao.parentElement;
-  respostas[grupo.dataset.pergunta] = Number(botao.dataset.nota);
-  grupo.querySelectorAll('button').forEach((b) => b.classList.toggle('marcado', b === botao));
-});
-function enviarAvaliacao() {
-  if (PERGUNTAS.some((p) => !respostas[p.id])) {
-    el('avAviso').innerHTML = '<span class="ruim">Responda as 3 perguntas (de 1 a 5).</span>';
-    return;
-  }
-  const lista = lerJSON(CHAVE_AVALIACOES, []);
-  lista.push({ data: new Date().toISOString(), ...respostas, pontos: jogo.pontos,
-               comentario: el('avComentario').value.trim() });
-  gravarArmazenamento(CHAVE_AVALIACOES, JSON.stringify(lista));
-  fecharModal();
-  mostrarToast('Obrigado pela avaliação! ⭐');
-}
-function mostrarToast(texto) {
-  const aviso = el('aviso');
-  aviso.innerHTML = `<div class="titulo-aviso" style="margin:0">${texto}</div>`;
-  aviso.classList.remove('escondido');
-  clearTimeout(timerAviso);
-  timerAviso = setTimeout(() => aviso.classList.add('escondido'), 2200);
-}
-
-const media = (lista, campo) => lista.length ? (lista.reduce((s, a) => s + a[campo], 0) / lista.length).toFixed(1) : '–';
-function abrirStats() {
-  const avaliacoes = lerJSON(CHAVE_AVALIACOES, []);
-  const linhas = Object.entries(stats.portas)
-    .map(([chave, [ok, erro]]) => ({ chave, ok, erro, taxa: erro / (ok + erro) }))
-    .sort((a, b) => b.taxa - a.taxa || b.erro - a.erro);
-  const totalOk = linhas.reduce((s, l) => s + l.ok, 0);
-  const totalErro = linhas.reduce((s, l) => s + l.erro, 0);
-  const pct = (x) => `${Math.round(x * 100)}%`;
-
-  let html = '<div class="resumo">' +
-    `<div><b>${stats.partidas}</b><span>Partidas</span></div>` +
-    `<div><b>${stats.treinos}</b><span>Treinos</span></div>` +
-    `<div><b>${stats.vitorias}</b><span>Chegaram à CPU</span></div>` +
-    `<div><b>${stats.partidas ? (stats.pontosTotais / stats.partidas).toFixed(1) : '–'}</b><span>Pontos/partida</span></div>` +
-    `<div><b>${totalOk + totalErro ? pct(totalOk / (totalOk + totalErro)) : '–'}</b><span>Acerto nos portões</span></div>` +
-    `<div><b>${stats.bloqueios}</b><span>Batidas em ✕</span></div>` +
-    '</div>';
-
-  html += `<h3 style="margin-top:14px">Avaliações (${avaliacoes.length})</h3>`;
-  html += avaliacoes.length
-    ? '<div class="resumo">' + PERGUNTAS.map((p) => `<div><b>${media(avaliacoes, p.id)}</b><span>${p.texto}</span></div>`).join('') + '</div>' +
-      avaliacoes.filter((a) => a.comentario).slice(-5).reverse()
-        .map((a) => `<p class="dica" style="text-align:left">“${escaparHtml(a.comentario)}”</p>`).join('')
-    : '<p class="dica">Nenhuma avaliação ainda. Ela aparece no botão ⭐ da tela de Game Over.</p>';
-
-  html += '<h3 style="margin-top:14px">Portões que mais derrubam jogadores</h3>';
-  html += linhas.length
-    ? '<table class="stats"><thead><tr><th>Portão</th><th>Acertos</th><th>Erros</th><th>% de erro</th></tr></thead><tbody>' +
-      linhas.map((l) => `<tr><td>${l.chave}</td><td>${l.ok}</td><td>${l.erro}</td>` +
-        `<td>${pct(l.taxa)}<span class="barra" style="width:${Math.round(l.taxa * 60)}px"></span></td></tr>`).join('') +
-      '</tbody></table>'
-    : '<p class="dica">Ainda não há partidas registradas.</p>';
-
-  el('statsConteudo').innerHTML = html;
-  el('statsCsv').classList.add('escondido');
-  abrirModal('stats');
-}
-function escaparHtml(texto) {
-  return texto.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-}
-function gerarCsv() {
-  const aspas = (v) => `"${String(v).replace(/"/g, '""')}"`;
-  let csv = 'tipo;portao_ou_data;acertos_ou_diversao;erros_ou_instrucoes;aprendizado;pontos;comentario\n';
-  for (const [chave, [ok, erro]] of Object.entries(stats.portas)) csv += `portao;${chave};${ok};${erro};;;\n`;
-  for (const a of lerJSON(CHAVE_AVALIACOES, [])) {
-    csv += `avaliacao;${a.data};${a.diversao};${a.instrucoes};${a.aprendizado};${a.pontos};${aspas(a.comentario)}\n`;
-  }
-  csv += `resumo;partidas=${stats.partidas} treinos=${stats.treinos} vitorias=${stats.vitorias} bloqueios=${stats.bloqueios};;;;;\n`;
-  return csv;
-}
-function copiarCsv() {
-  const csv = gerarCsv();
-  const caixa = el('statsCsv');
-  caixa.value = csv;
-  caixa.classList.remove('escondido');
-  caixa.select();
-  const ok = () => mostrarToast('Dados copiados! Cole numa planilha.');
-  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(csv).then(ok, () => {});
-  else { try { if (document.execCommand('copy')) ok(); } catch (erro) { /* o texto fica selecionado na caixa */ } }
-}
-function zerarStats() {
-  if (!confirm('Apagar todas as estatísticas e avaliações deste aparelho?')) return;
-  Object.assign(stats, { partidas: 0, treinos: 0, vitorias: 0, pontosTotais: 0, bloqueios: 0, portas: {} });
-  salvarStats();
-  gravarArmazenamento(CHAVE_AVALIACOES, '[]');
-  abrirStats();
-}
-
-
 // =====================================================================
 // 7. ATUALIZAÇÃO (física / regras), chamada a cada quadro com delta time
 // =====================================================================
@@ -1321,7 +1122,6 @@ function resolverColuna(coluna) {
     return;
   }
 
-  if (faixa.tipo !== BLOQUEIO) registrarPortao(chavePortao(faixa), saida === 1);
   if (saida === 1) {
     faixa.estado = 'aberto';
     jogo.pontos++;
@@ -1339,9 +1139,6 @@ function resolverColuna(coluna) {
     jogo.tremor = 1;
     criarExplosao(jogadorX, y, COR_ERRO, 36);
     som.gameOver();
-    if (faixa.tipo === BLOQUEIO) stats.bloqueios++;
-    stats.pontosTotais += jogo.pontos;
-    salvarStats();
     if (jogo.pontos > jogo.recorde) {
       jogo.recorde = jogo.pontos;
       jogo.novoRecorde = true;
@@ -1706,7 +1503,6 @@ function desenharEfeitos() {
 // 9. ENTRADAS (teclado, mouse, toque) e LOOP PRINCIPAL
 // =====================================================================
 window.addEventListener('keydown', (e) => {
-  if (e.target.closest && e.target.closest('textarea, input')) return; // digitando o comentário da avaliação
   if (e.code === 'Escape') {
     if (modal) fecharModal();
     else if (jogo.estado === 'jogando') alternarPausa();
@@ -1794,10 +1590,8 @@ ligarBotao('btnDicas', alternarDicas);
 ligarBotao('btnJogar', () => iniciarJogo('normal'));
 ligarBotao('btnTreino', () => iniciarJogo('treino'));
 ligarBotao('btnHistoria', abrirHistoria);
-ligarBotao('btnStats', abrirStats);
 ligarBotao('btnReiniciar', () => iniciarJogo(jogo.modo));
 ligarBotao('btnMenuGO', voltarAoMenu);
-ligarBotao('btnAvaliarGO', abrirAvaliacao);
 ligarBotao('btnContinuar', alternarPausa);
 ligarBotao('btnAjudaPausa', abrirAjuda);
 ligarBotao('btnMenuPausa', voltarAoMenu);
@@ -1808,11 +1602,6 @@ ligarBotao('btnProximoHistoria', avancarHistoria);
 ligarBotao('btnPularHistoria', fecharModal);
 ligarBotao('btnFimPrincipal', botaoFimPrincipal);
 ligarBotao('btnFimMenu', voltarAoMenu);
-ligarBotao('btnEnviarAvaliacao', enviarAvaliacao);
-ligarBotao('btnCancelarAvaliacao', fecharModal);
-ligarBotao('btnCopiarCsv', copiarCsv);
-ligarBotao('btnZerarStats', zerarStats);
-ligarBotao('btnFecharStats', fecharModal);
 
 // Pausa automática ao trocar de aba
 document.addEventListener('visibilitychange', () => {
