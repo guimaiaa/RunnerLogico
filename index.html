@@ -577,15 +577,34 @@ const som = {
   ctx: null,
   mudo: lerArmazenamento('runnerLogico.mudo', '0') === '1',
 
-  /** O navegador só libera áudio após uma interação do usuário. */
+  desbloqueado: false,
+
+  /**
+   * O navegador só libera áudio após uma interação do usuário. Chamado em todo toque/clique/tecla.
+   * - iPhone: o som do Web Audio obedece à chave do silencioso; o tipo de sessão 'playback'
+   *   (Safari 16.4+) faz o jogo tocar mesmo no silencioso, como um vídeo.
+   * - iPhone: o contexto pode ficar 'interrupted' (tela bloqueada, ligação), não só 'suspended'.
+   * - Safari antigo só libera de verdade quando algo toca dentro do gesto: um som mudo de 1 amostra.
+   */
   iniciar() {
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (erro) { /* sem suporte */ }
     if (!this.ctx) {
       try {
         const Contexto = window.AudioContext || window.webkitAudioContext;
         if (Contexto) this.ctx = new Contexto();
       } catch (erro) { this.ctx = null; }
     }
-    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    if (!this.ctx) return;
+    if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
+    if (!this.desbloqueado) {
+      try {
+        const fonte = this.ctx.createBufferSource();
+        fonte.buffer = this.ctx.createBuffer(1, 1, 22050);
+        fonte.connect(this.ctx.destination);
+        fonte.start(0);
+        this.desbloqueado = true;
+      } catch (erro) { /* tenta de novo no próximo gesto */ }
+    }
   },
 
   /** Toca uma nota: frequência, atraso, duração, forma de onda, volume e (opcional) frequência final. */
@@ -1531,6 +1550,12 @@ window.addEventListener('keydown', (e) => {
     alternarDicas();
   }
 });
+
+// Libera o áudio em qualquer gesto, em qualquer tela (o iPhone só aceita no fim do toque, não no início)
+['pointerup', 'touchend', 'click', 'keydown'].forEach((tipo) =>
+  window.addEventListener(tipo, () => som.iniciar(), { capture: true, passive: true }));
+// Ao voltar para o jogo (outro app, tela bloqueada), o próximo gesto reativa o som
+document.addEventListener('visibilitychange', () => { if (!document.hidden) som.iniciar(); });
 
 // Soltar a tecla volta à velocidade normal
 window.addEventListener('keyup', (e) => {
