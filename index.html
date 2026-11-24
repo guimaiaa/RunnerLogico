@@ -588,6 +588,7 @@ const som = {
    */
   iniciar() {
     try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (erro) { /* sem suporte */ }
+    this.ligarMidiaMuda();
     if (!this.ctx) {
       try {
         const Contexto = window.AudioContext || window.webkitAudioContext;
@@ -605,6 +606,43 @@ const som = {
         this.desbloqueado = true;
       } catch (erro) { /* tenta de novo no próximo gesto */ }
     }
+  },
+
+  /**
+   * Truque para o iPhone no modo silencioso (funciona em iOS antigos, onde audioSession não existe):
+   * enquanto um <audio> de mídia estiver tocando, o Safari trata a página como reprodução de mídia
+   * e o Web Audio também deixa de obedecer à chave do silencioso. Tocamos um WAV mudo em loop,
+   * gerado na hora; ele pausa quando a página fica em segundo plano.
+   */
+  midiaMuda: null,
+  ligarMidiaMuda() {
+    if (this.mudo || document.hidden) return;
+    try {
+      if (!this.midiaMuda) {
+        const amostras = 4000; // 0,5 s de silêncio, 8 bits, 8 kHz, mono
+        const wav = new DataView(new ArrayBuffer(44 + amostras));
+        const texto = (pos, s) => { for (let i = 0; i < s.length; i++) wav.setUint8(pos + i, s.charCodeAt(i)); };
+        texto(0, 'RIFF'); wav.setUint32(4, 36 + amostras, true); texto(8, 'WAVE');
+        texto(12, 'fmt '); wav.setUint32(16, 16, true); wav.setUint16(20, 1, true); wav.setUint16(22, 1, true);
+        wav.setUint32(24, 8000, true); wav.setUint32(28, 8000, true); wav.setUint16(32, 1, true); wav.setUint16(34, 8, true);
+        texto(36, 'data'); wav.setUint32(40, amostras, true);
+        for (let i = 0; i < amostras; i++) wav.setUint8(44 + i, 128); // 128 = silêncio em 8 bits
+        const audio = document.createElement('audio');
+        audio.src = URL.createObjectURL(new Blob([wav], { type: 'audio/wav' }));
+        audio.loop = true;
+        audio.setAttribute('playsinline', '');
+        audio.setAttribute('x-webkit-airplay', 'deny');
+        audio.disableRemotePlayback = true;
+        this.midiaMuda = audio;
+      }
+      if (this.midiaMuda.paused) {
+        const p = this.midiaMuda.play();
+        if (p && p.catch) p.catch(() => { /* sem gesto ainda: tenta no próximo */ });
+      }
+    } catch (erro) { /* sem suporte: segue só com Web Audio */ }
+  },
+  pararMidiaMuda() {
+    if (this.midiaMuda && !this.midiaMuda.paused) this.midiaMuda.pause();
   },
 
   /** Toca uma nota: frequência, atraso, duração, forma de onda, volume e (opcional) frequência final. */
@@ -844,6 +882,7 @@ function alternarPausa() {
 function alternarMudo() {
   som.mudo = !som.mudo;
   gravarArmazenamento('runnerLogico.mudo', som.mudo ? '1' : '0');
+  if (som.mudo) som.pararMidiaMuda(); else som.iniciar();
   el('btnMudo').textContent = som.mudo ? '🔇' : '🔊';
 }
 
@@ -1555,7 +1594,10 @@ window.addEventListener('keydown', (e) => {
 ['pointerup', 'touchend', 'click', 'keydown'].forEach((tipo) =>
   window.addEventListener(tipo, () => som.iniciar(), { capture: true, passive: true }));
 // Ao voltar para o jogo (outro app, tela bloqueada), o próximo gesto reativa o som
-document.addEventListener('visibilitychange', () => { if (!document.hidden) som.iniciar(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) som.pararMidiaMuda(); // não prende o áudio do celular com o jogo em segundo plano
+  else som.iniciar();
+});
 
 // Soltar a tecla volta à velocidade normal
 window.addEventListener('keyup', (e) => {
